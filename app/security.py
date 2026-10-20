@@ -1,4 +1,8 @@
-"""Single-user sign-in: Argon2 hashes, account lockout, session checks and CSRF."""
+"""Single-user sign-in: Argon2 hashes, account lockout, session checks and CSRF.
+
+The portfolio admin's sign-in cookie (app/sso.py) also opens a session, for the one
+user this app has; such a session ends as soon as that cookie is gone or expired.
+"""
 
 import hmac
 import secrets
@@ -10,6 +14,7 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import sso
 from app.config import settings
 from app.db import get_db
 from app.models import User
@@ -93,12 +98,31 @@ class NotAuthenticated(Exception):
     pass
 
 
+def sso_signed_in(request: Request) -> bool:
+    return sso.verify(request.cookies.get(sso.COOKIE)) is not None
+
+
+def sso_user(request: Request, db: Session) -> User | None:
+    """Open a session from the portfolio cookie. The app is single-user: it is the first account."""
+    if not sso_signed_in(request):
+        return None
+    user = db.scalar(select(User).order_by(User.id).limit(1))
+    if user is not None:
+        start_session(request, user)
+        request.session["sso"] = True
+    return user
+
+
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    if request.session.get("sso") and not sso_signed_in(request):
+        request.session.clear()  # signed out of (or expired at) the portfolio
     uid = request.session.get("uid")
     user = db.get(User, uid) if uid is not None else None
     if user is None or request.session.get("sv") != user.session_version:
         request.session.clear()
-        raise NotAuthenticated()
+        user = sso_user(request, db)
+        if user is None:
+            raise NotAuthenticated()
     return user
 
 

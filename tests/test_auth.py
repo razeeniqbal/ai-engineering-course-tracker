@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.models import User
@@ -114,3 +115,75 @@ def test_security_headers(client):
     r = client.get("/login")
     assert "default-src 'self'" in r.headers["content-security-policy"]
     assert r.headers["x-frame-options"] == "DENY"
+
+
+# --- single sign-on from the portfolio admin -----------------------------------
+
+def sso_token(secret: str, sub: str = "razeeniqbal", exp_in: float = 3600) -> str:
+    """Mint a token the way the portfolio does (lib/admin/sso.ts)."""
+    import base64
+    import hashlib
+    import hmac
+    import json
+    import time
+    b64 = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()  # noqa: E731
+    now = int(time.time())
+    payload = b64(json.dumps({"sub": sub, "iat": now, "exp": now + exp_in}).encode())
+    return f"v1.{payload}.{b64(hmac.new(secret.encode(), f'v1.{payload}'.encode(), hashlib.sha256).digest())}"
+
+
+@pytest.fixture
+def sso_on(monkeypatch):
+    from app import sso
+    monkeypatch.setattr(sso, "SECRET", "shared-secret")
+
+
+def test_login_page_offers_portfolio_sign_in(client, owner, sso_on):
+    html = client.get("/login", headers={"host": "tracker.madebyrazeen.com", "x-forwarded-proto": "https"}).text
+    assert ("https://portfolio.madebyrazeen.com/api/admin/login?next=https%3A%2F%2Ftracker.madebyrazeen.com%2F"
+            in html.replace("&amp;", "&"))
+
+
+def test_no_portfolio_button_without_secret(client, owner):
+    assert "Sign in with madebyrazeen" not in client.get("/login").text
+
+
+def test_portfolio_cookie_opens_a_session(client, owner, sso_on):
+    from app import sso
+    client.cookies.set(sso.COOKIE, sso_token("shared-secret"))
+    assert client.get("/", follow_redirects=False).status_code == 200
+    assert client.get("/login", follow_redirects=False).headers["location"] == "/"
+    # Writes still need the CSRF token, which the new session put on the page.
+    token = csrf_from(client.get("/settings").text)
+    r = client.post("/logout", data={"csrf_token": token}, follow_redirects=False)
+    assert r.headers["location"].startswith("https://portfolio.madebyrazeen.com/api/admin/logout?next=")
+
+
+@pytest.mark.parametrize("token", [
+    lambda: sso_token("other-secret"),
+    lambda: sso_token("shared-secret", exp_in=-1),
+    lambda: "v1.garbage.sig",
+])
+def test_bad_portfolio_cookie_is_ignored(client, owner, sso_on, token):
+    from app import sso
+    client.cookies.set(sso.COOKIE, token())
+    assert client.get("/", follow_redirects=False).headers["location"] == "/login"
+
+
+def test_portfolio_session_ends_with_the_cookie(client, owner, sso_on):
+    from app import sso
+    client.cookies.set(sso.COOKIE, sso_token("shared-secret"))
+    assert client.get("/", follow_redirects=False).status_code == 200
+    client.cookies.delete(sso.COOKIE)  # signed out at the portfolio
+    assert client.get("/", follow_redirects=False).status_code == 303
+
+
+def test_password_session_survives_without_portfolio_cookie(client, owner, sso_on):
+    assert login(client).status_code == 303
+    assert client.get("/", follow_redirects=False).status_code == 200
+
+
+def test_portfolio_cookie_without_an_account_shows_the_form(client, sso_on):
+    from app import sso
+    client.cookies.set(sso.COOKIE, sso_token("shared-secret"))
+    assert client.get("/login", follow_redirects=False).status_code == 200

@@ -7,6 +7,10 @@
     <h1>Course Tracker</h1>
     <p class="sub">Sign in to log your progress</p>
     {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    {% if sso_login %}
+    <a class="button block" href="{{ sso_login }}">Sign in with madebyrazeen</a>
+    <p class="section-label">Or with email</p>
+    {% endif %}
     <form method="post" action="/login" class="card">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="email">Email</label>
