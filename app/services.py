@@ -98,6 +98,15 @@ def publish(db: Session, episode_key: str, video_url: str, length_seconds: int, 
     change_status(db, episode_key, "published")
 
 
+def save_script(db: Session, episode_key: str, markdown: str) -> None:
+    progress = db.get(EpisodeProgress, episode_key)
+    if progress is None:
+        raise NotFound(episode_key)
+    # Normalise Windows line endings so word counts and diffs stay stable.
+    progress.script_markdown = markdown.replace("\r\n", "\n").strip("\n") or None
+    db.commit()
+
+
 def status_history(db: Session, episode_key: str) -> list[StatusEvent]:
     return list(db.scalars(select(StatusEvent).where(StatusEvent.episode_key == episode_key)
                            .order_by(StatusEvent.changed_at.desc(), StatusEvent.id.desc())))

@@ -45,8 +45,30 @@
   {% endif %}
 </section>
 
-<div class="grid grid-2">
-  <section class="card" aria-labelledby="spec-h">
+<div class="grid script-grid">
+  <section class="card" id="script" aria-labelledby="script-h">
+    {% set st = script_stats %}
+    <div class="card-head">
+      <h2 id="script-h">Script</h2>
+      <span id="script-meter" class="meter verdict-{{ st.verdict }}" data-low="{{ st.low }}" data-high="{{ st.high }}" aria-live="polite">{{ st.words }} spoken words · ~{{ st.duration }}</span>
+    </div>
+    <p class="caption">Target {{ st.low }}–{{ st.high }} spoken words for a {{ "Concept" if e.type == "C" else "Build" }} episode (about 2:00). Spoken lines start with <code>&gt;</code>; screen directions go in <code>*Screen: …*</code>.</p>
+    <form method="post" action="/episodes/{{ e.episode_key }}/script">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="visually-hidden" for="script-text">Script for {{ e.code }}</label>
+      <textarea id="script-text" class="script-editor" name="script_markdown" spellcheck="true" rows="18"
+                placeholder="Write your script here, or insert the two-minute outline to start from the spec."
+                hx-post="/episodes/{{ e.episode_key }}/script" hx-trigger="input changed delay:1200ms, blur changed"
+                hx-target="#script-status" hx-sync="this:replace" data-autosave>{{ p.script_markdown or "" }}</textarea>
+      <div class="actions">
+        <button type="button" class="secondary" data-insert-outline="#script-text" data-template="{{ script_outline }}">Insert two-minute outline</button>
+        <noscript><button type="submit">Save script</button></noscript>
+        <span id="script-status" aria-live="polite">{% if p.script_markdown %}<span class="caption">Saves as you type</span>{% endif %}</span>
+      </div>
+    </form>
+  </section>
+
+  <section class="card spec-side" aria-labelledby="spec-h">
     <div class="card-head"><h2 id="spec-h">Spec</h2></div>
     <dl class="spec">
       <div><dt>Hook</dt><dd>{{ e.hook }}</dd></div>
@@ -56,8 +78,9 @@
       <div><dt>Takeaway</dt><dd>{{ e.takeaway }}</dd></div>
     </dl>
   </section>
+</div>
 
-  <div class="stack">
+<div class="grid grid-2">
     <section class="card" aria-labelledby="time-h">
       <div class="card-head"><h2 id="time-h">Production time</h2><span class="caption">Total {{ ui.minutes(total_minutes) }}</span></div>
       <form method="post" action="/episodes/{{ e.episode_key }}/production"
@@ -92,7 +115,6 @@
       </ol>
       {% else %}<p class="muted">No status changes yet. Pick a status above to start the timeline.</p>{% endif %}
     </section>
-  </div>
 </div>
 
 <nav class="pager" aria-label="Other episodes">

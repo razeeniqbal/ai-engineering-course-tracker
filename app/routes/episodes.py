@@ -3,11 +3,11 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
-from app import insights, services
+from app import insights, scripts, services
 from app.db import get_db
 from app.importer import active_version
 from app.models import Module
-from app.timeutil import local_today, parse_length
+from app.timeutil import local_today, parse_length, to_local, utcnow
 from app.web import back_path, is_htmx, optional_int, redirect, render
 
 router = APIRouter()
@@ -41,9 +41,12 @@ def episodes(request: Request, module: str = "", status: str = "", type: str = "
 def _detail_context(db: Session, row: services.EpisodeRow) -> dict:
     key = row.episode.episode_key
     times = services.production_time(db, key)
+    nav = insights.neighbours(db, row.episode)
     return dict(row=row, history=services.status_history(db, key), times=times,
-                total_minutes=insights.production_minutes(times), nav=insights.neighbours(db, row.episode),
-                stage=insights.STAGE[row.progress.status], today=local_today(), page="episodes")
+                total_minutes=insights.production_minutes(times), nav=nav,
+                stage=insights.STAGE[row.progress.status], today=local_today(), page="episodes",
+                script_stats=scripts.stats(row.progress.script_markdown, row.episode.type),
+                script_outline=scripts.outline(row.episode, nav.next))
 
 
 @router.get("/episodes/{episode_key}")
@@ -121,3 +124,17 @@ def save_production(request: Request, episode_key: str, scripting_min: str = For
     if not is_htmx(request):
         return redirect(f"/episodes/{episode_key}")
     return render(request, "partials/saved.html")
+
+
+@router.post("/episodes/{episode_key}/script")
+def save_script(request: Request, episode_key: str, script_markdown: str = Form(""),
+                db: Session = Depends(get_db)):
+    row = services.get_episode(db, episode_key)
+    if len(script_markdown) > scripts.MAX_SCRIPT_CHARS:
+        return render(request, "partials/script_status.html", status_code=422,
+                      error=f"Script is longer than {scripts.MAX_SCRIPT_CHARS:,} characters; not saved.")
+    services.save_script(db, episode_key, script_markdown)
+    if not is_htmx(request):
+        return redirect(f"/episodes/{episode_key}#script")
+    return render(request, "partials/script_status.html", saved_at=to_local(utcnow()),
+                  s=scripts.stats(script_markdown, row.episode.type))

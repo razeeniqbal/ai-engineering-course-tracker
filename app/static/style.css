@@ -377,3 +377,19 @@ button.row-item.block { width: 100%; justify-content: center; border-radius: 0; 
   .rings-card { gap: 16px; flex-wrap: nowrap; }
   .ring-legend .pct { font-size: 1.15rem; }
 }
+
+/* script editor */
+@media (min-width: 900px) {
+  .script-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .spec-side { position: sticky; top: 24px; }
+}
+.script-grid { margin-bottom: 16px; }
+textarea.script-editor {
+  min-height: 26rem; font: 15px/1.6 ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  letter-spacing: 0; tab-size: 2;
+}
+.meter { font-size: .8rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--fill); color: var(--label-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.meter.verdict-on-target { background: rgba(48, 209, 88, .16); color: #7ee2a0; }
+.meter.verdict-over { background: rgba(255, 159, 10, .18); color: #ffb340; }
+.meter.verdict-short { background: rgba(100, 210, 255, .14); color: #8fdcff; }
+code { font: .85em ui-monospace, "SF Mono", Consolas, monospace; background: var(--fill); padding: 1px 5px; border-radius: 5px; color: var(--label); }
