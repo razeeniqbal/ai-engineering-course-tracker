@@ -1,15 +1,23 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">{{ today.strftime("%A, %d %B") }}</div>
+    <h1>Today</h1>
+  </div>
+</div>
 {% if not d.has_course %}
 <div class="card">
-  <h1>Welcome</h1>
-  <p>No course is loaded yet. <a href="/settings">Import the course markdown in Settings</a> to get started.</p>
+  <h2>Welcome</h2>
+  <p class="muted">No course is loaded yet.</p>
+  <a class="button" href="/settings">Import the course</a>
 </div>
 {% else %}
 {% include "partials/dashboard_summary.html" %}
 
-<section class="card" aria-labelledby="study-h">
-  <h2 id="study-h">Log study time</h2>
+<div class="section-label">Log study time</div>
+<section class="card" aria-label="Log study time">
   {% with modules=d.modules, default_module=(d.up_next[0].episode.module.number if d.up_next else 0) %}{% include "partials/study_form.html" %}{% endwith %}
 </section>
 {% endif %}

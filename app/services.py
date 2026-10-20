@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app import insights
 from app.importer import active_version
 from app.models import (
     STATUS_LABELS, STATUSES, Episode, EpisodeProgress, Module, ModuleProgress, ProductionTime,
@@ -190,6 +191,11 @@ class Dashboard:
     modules: list[ModuleRow]
     study_minutes_week: int
     week_start: date
+    rings: list[insights.Ring]
+    pace: insights.Pace
+    streak: int
+    activity: list[insights.Activity]
+    chart: insights.WeekChart
 
 
 def dashboard(db: Session) -> Dashboard:
@@ -202,12 +208,20 @@ def dashboard(db: Session) -> Dashboard:
     # Work already in progress comes before untouched episodes, each in course order.
     pending = [r for r in rows if r.progress.status != "published"]
     pending.sort(key=lambda r: (r.progress.status == "not_started", r.episode.position))
+    modules = module_rows(db)
+    published_dates = [r.progress.published_on for r in rows
+                       if r.progress.status == "published" and r.progress.published_on]
     return Dashboard(
         has_course=bool(rows),
         total=len(rows),
         by_status=[(slug, label, counts[slug]) for slug, label in STATUSES],
         up_next=pending[:5],
-        modules=module_rows(db),
+        modules=modules,
         study_minutes_week=int(week_minutes),
         week_start=start,
+        rings=insights.rings([r.progress.status for r in rows], [m.progress for m in modules], len(modules)),
+        pace=insights.pace(published_dates, len(pending)),
+        streak=insights.streak(insights.active_days(db)),
+        activity=insights.activity(db),
+        chart=insights.weekly_study_chart(db),
     )

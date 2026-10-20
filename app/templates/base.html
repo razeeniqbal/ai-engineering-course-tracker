@@ -1,8 +1,12 @@
+{% import "_ui.html" as ui %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}Course Tracker{% endblock %}</title>
@@ -11,23 +15,30 @@
   <script src="/static/app.js" defer></script>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
-{% block header %}
-<header class="topbar">
-  <a class="brand" href="/">Course Tracker</a>
-  <nav class="nav" aria-label="Main">
-    <a href="/" {% if page == "dashboard" %}aria-current="page"{% endif %}>Dashboard</a>
-    <a href="/episodes" {% if page == "episodes" %}aria-current="page"{% endif %}>Episodes</a>
-    <a href="/modules" {% if page == "modules" %}aria-current="page"{% endif %}>Modules</a>
-    <a href="/settings" {% if page == "settings" %}aria-current="page"{% endif %}>Settings</a>
+{% block body %}
+{% set nav = [("dashboard", "/", "home", "Today"), ("episodes", "/episodes", "episodes", "Episodes"),
+              ("modules", "/modules", "modules", "Modules"), ("settings", "/settings", "settings", "Settings")] %}
+<div class="shell">
+  <nav class="sidebar" aria-label="Main">
+    <a class="brand" href="/"><span class="brand-mark">{{ ui.icon("spark") }}</span>Course Tracker</a>
+    {% for key, href, ic, label in nav %}
+    <a class="nav" href="{{ href }}" {% if page == key %}aria-current="page"{% endif %}>{{ ui.icon(ic) }}{{ label }}</a>
+    {% endfor %}
+    <div class="spacer"></div>
     <form method="post" action="/logout">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="link" type="submit">Sign out</button>
+      <button class="plain" type="submit">{{ ui.icon("logout") }} Sign out</button>
     </form>
   </nav>
-</header>
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+  <nav class="tabbar" aria-label="Main">
+    {% for key, href, ic, label in nav %}
+    <a href="{{ href }}" {% if page == key %}aria-current="page"{% endif %}>{{ ui.icon(ic) }}<span>{{ label }}</span></a>
+    {% endfor %}
+  </nav>
+</div>
 {% endblock %}
-<main id="main">
-{% block content %}{% endblock %}
-</main>
 </body>
 </html>

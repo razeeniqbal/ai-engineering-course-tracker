@@ -1,69 +1,154 @@
+{% import "_ui.html" as ui %}
 <div id="summary" hx-get="/dashboard/summary" hx-trigger="statusChanged from:body, studyLogged from:body"
      hx-swap="outerHTML">
   {% set next = d.up_next[0] if d.up_next else None %}
-  <section class="card next" aria-labelledby="next-h">
-    <h1 id="next-h" class="h-small">Next episode</h1>
-    {% if next %}
-    <ul class="list"><li>
-      <div class="ep-title">
-        <span class="code">{{ next.episode.code }} · {{ next.episode.type }}</span>
-        <a href="/episodes/{{ next.episode.episode_key }}">{{ next.episode.title }}</a>
-        <div class="muted">Module {{ next.episode.module.number }} · {{ next.episode.module.title }}</div>
-      </div>
-      {% with row=next %}{% include "partials/status_control.html" %}{% endwith %}
-    </li></ul>
-    {% else %}
-    <p>Every episode is published. 🎉</p>
-    {% endif %}
-  </section>
+  {% set p = d.pace %}
 
-  <section class="card" aria-labelledby="status-h">
-    <h2 id="status-h">Episodes by status <span class="muted">({{ d.total }})</span></h2>
-    <div class="stats">
-      {% for slug, label, count in d.by_status %}
-      <a class="stat status-{{ slug }}" href="/episodes?status={{ slug }}">
-        <b>{{ count }}</b><span>{{ label }}</span>
-      </a>
-      {% endfor %}
-      <div class="stat plain">
-        <b>{{ d.study_minutes_week | hours }}</b><span>study hours this week</span>
+  <div class="grid grid-2">
+    {# Up next #}
+    <section class="card hero-next" aria-labelledby="next-h">
+      <div class="eyebrow" id="next-h">Up next</div>
+      {% if next %}
+        <span class="code">{{ next.episode.code }} · {{ "Concept" if next.episode.type == "C" else "Build" }} · Module {{ next.episode.module.number }}</span>
+        <a class="title" href="/episodes/{{ next.episode.episode_key }}">{{ next.episode.title }}</a>
+        <p class="claim-line">{{ next.episode.claim }}</p>
+        {% with row=next %}{% include "partials/status_control.html" %}{% endwith %}
+      {% else %}
+        <p class="title">Every episode is published 🎉</p>
+      {% endif %}
+    </section>
+
+    {# Activity rings #}
+    <section class="card" aria-labelledby="rings-h">
+      <div class="card-head"><h2 id="rings-h">Progress</h2><span class="caption">{{ d.total }} episodes · {{ d.modules | length }} modules</span></div>
+      <div class="rings-card">
+        {{ ui.activity_rings(d.rings) }}
+        <div class="ring-legend">
+          {% for r in d.rings %}
+          <div class="item">
+            <span class="dot dot-{{ r.key }}"></span><span>{{ r.label }}</span><span class="pct">{{ r.percent }}%</span>
+            <span class="caption">{{ r.detail }}</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
+    </section>
+  </div>
+
+  <div class="section-label">This week</div>
+  <div class="tiles">
+    <div class="tile">
+      <div class="k"><span class="ic-pace">{{ ui.icon("published") }}</span>Published</div>
+      <div class="v">{{ p.this_week }}<small> / {{ p.target }}</small></div>
+      <div class="s">{% if p.this_week >= p.target %}Target hit 🎯{% else %}{{ p.target - p.this_week }} to go this week{% endif %}</div>
     </div>
-  </section>
+    <div class="tile">
+      <div class="k"><span class="ic-study">{{ ui.icon("clock") }}</span>Study</div>
+      <div class="v">{{ d.study_minutes_week | hours }}<small> h</small></div>
+      <div class="s">since Monday {{ d.week_start.strftime("%d %b") }}</div>
+    </div>
+    <div class="tile">
+      <div class="k"><span class="ic-streak">{{ ui.icon("flame") }}</span>Streak</div>
+      <div class="v">{{ d.streak }}<small> day{{ "" if d.streak == 1 else "s" }}</small></div>
+      <div class="s">{% if d.streak %}Keep it going{% else %}Log something today{% endif %}</div>
+    </div>
+    <div class="tile">
+      <div class="k"><span class="ic-finish">{{ ui.icon("flag") }}</span>Finish</div>
+      {% if p.finish_at_pace %}
+      <div class="v">{{ p.finish_at_pace.strftime("%b %Y") }}</div>
+      <div class="s">at {{ p.per_week }}/week · at 3/week: {{ p.finish_at_target.strftime("%b %Y") }}</div>
+      {% else %}
+      <div class="v">{{ p.finish_at_target.strftime("%b %Y") if p.finish_at_target else "—" }}</div>
+      <div class="s">if you publish 3/week from now</div>
+      {% endif %}
+    </div>
+  </div>
 
-  {% if d.up_next | length > 1 %}
-  <section class="card" aria-labelledby="upnext-h">
-    <h2 id="upnext-h">Up next</h2>
-    <ul class="list">
-      {% for row in d.up_next[1:] %}
-      <li>
-        <div class="ep-title"><span class="code">{{ row.episode.code }}</span>
-          <a href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a></div>
-        {% include "partials/status_control.html" %}
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
+  <div class="grid grid-2 mt">
+    {# Study chart #}
+    <section class="card" aria-labelledby="chart-h">
+      {% set c = d.chart %}
+      <div class="card-head"><h2 id="chart-h">Study hours per week</h2><span class="caption">last 8 weeks · {{ (c.total_minutes / 60) | round(1) }} h</span></div>
+      <svg class="chart" viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-labelledby="chart-h">
+        {% for y, label in c.gridlines %}
+        <line class="grid-line" x1="26" x2="{{ c.width }}" y1="{{ '%.1f' % y }}" y2="{{ '%.1f' % y }}"/>
+        <text class="axis-label" x="0" y="{{ '%.1f' % (y + 3) }}">{{ label }}</text>
+        {% endfor %}
+        {% for b in c.bars %}
+        <g>
+          <title>Week of {{ b.week.strftime("%d %b") }}: {{ ui.minutes(b.minutes) }}</title>
+          <rect class="hit" x="{{ '%.1f' % (b.x - 4) }}" y="12" width="{{ '%.1f' % (c.bar_width + 8) }}" height="{{ c.height - 34 }}"/>
+          {% if b.height > 0 %}
+          {% set r = [4, b.height] | min %}
+          <path class="bar{{ ' current' if loop.last }}" d="M{{ '%.1f' % b.x }},{{ '%.1f' % (b.y + b.height) }}V{{ '%.1f' % (b.y + r) }}Q{{ '%.1f' % b.x }},{{ '%.1f' % b.y }} {{ '%.1f' % (b.x + r) }},{{ '%.1f' % b.y }}H{{ '%.1f' % (b.x + c.bar_width - r) }}Q{{ '%.1f' % (b.x + c.bar_width) }},{{ '%.1f' % b.y }} {{ '%.1f' % (b.x + c.bar_width) }},{{ '%.1f' % (b.y + r) }}V{{ '%.1f' % (b.y + b.height) }}Z"/>
+          {% endif %}
+          {% if loop.last and b.minutes %}<text class="value" x="{{ '%.1f' % (b.x + c.bar_width / 2) }}" y="{{ '%.1f' % (b.y - 4) }}" text-anchor="middle">{{ ui.minutes(b.minutes) }}</text>{% endif %}
+          <text class="axis-label" x="{{ '%.1f' % (b.x + c.bar_width / 2) }}" y="{{ c.height - 6 }}" text-anchor="middle">{{ b.label }}</text>
+        </g>
+        {% endfor %}
+      </svg>
+      <table class="visually-hidden">
+        <caption>Study minutes per week</caption>
+        <tr><th>Week of</th><th>Minutes</th></tr>
+        {% for b in c.bars %}<tr><td>{{ b.week }}</td><td>{{ b.minutes }}</td></tr>{% endfor %}
+      </table>
+    </section>
 
-  <section class="card" aria-labelledby="mod-h">
-    <h2 id="mod-h">Progress by module</h2>
-    <table>
-      <thead><tr><th>Module</th><th>Published</th><th>L · B · T</th></tr></thead>
-      <tbody>
-      {% for m in d.modules %}
-      <tr>
-        <td><a href="/modules/{{ m.module.number }}">{{ m.module.number }}. {{ m.module.title }}</a></td>
-        <td class="bar-cell">
-          <progress value="{{ m.published }}" max="{{ m.total or 1 }}" aria-hidden="true"></progress>
-          <span class="muted">{{ m.published }}/{{ m.total }}</span>
-        </td>
-        <td aria-label="Learned {{ 'yes' if m.progress.learned else 'no' }}, built {{ 'yes' if m.progress.built else 'no' }}, tested {{ 'yes' if m.progress.tested else 'no' }}">
-          {{ "✓" if m.progress.learned else "·" }} {{ "✓" if m.progress.built else "·" }} {{ "✓" if m.progress.tested else "·" }}
-        </td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </section>
+    {# Status breakdown #}
+    <section class="card" aria-labelledby="status-h">
+      <div class="card-head"><h2 id="status-h">Episodes by status</h2><a href="/episodes">All episodes</a></div>
+      {{ ui.status_bar(d.by_status, d.total) }}
+      {% if d.up_next | length > 1 %}
+      <div class="eyebrow mt-l">Next in line</div>
+      <div class="group inset">
+        {% for row in d.up_next[1:] %}
+        <div class="row-item">
+          <div class="row-main">
+            <a class="row-title" href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a>
+            <div class="row-sub">{{ row.episode.code }} · Module {{ row.episode.module.number }}</div>
+          </div>
+          {% include "partials/status_control.html" %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="grid grid-2 mt">
+    {# Recent activity #}
+    <section aria-labelledby="act-h">
+      <div class="section-label flush" id="act-h">Recent activity</div>
+      <div class="group">
+        {% for a in d.activity %}
+        <a class="row-item" href="{{ a.href }}">
+          <span class="feed-icon {{ 'feed-study' if a.kind == 'study' else 'feed-' ~ a.status }}">{{ ui.icon("study" if a.kind == "study" else a.status) }}</span>
+          <div class="row-main">
+            <div class="row-title">{{ a.title }}</div>
+            <div class="row-sub">{{ a.detail }} · {{ a.at | local("%d %b, %H:%M") }}</div>
+          </div>
+        </a>
+        {% else %}
+        <p class="empty">Nothing yet. Change an episode's status or log study time and it shows up here.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# Modules #}
+    <section aria-labelledby="mod-h">
+      <div class="section-label flush" id="mod-h">Modules</div>
+      <div class="group">
+        {% for m in d.modules %}
+        <a class="row-item" href="/modules/{{ m.module.number }}">
+          {{ ui.mini_ring((100 * m.published / m.total) | round | int if m.total else 0, "publish", m.published ~ " of " ~ m.total ~ " published") }}
+          <div class="row-main">
+            <div class="row-title">{{ m.module.number }}. {{ m.module.title }}</div>
+            <div class="row-sub">{{ m.published }}/{{ m.total }} published · Learned {{ "✓" if m.progress.learned else "–" }} · Built {{ "✓" if m.progress.built else "–" }} · Tested {{ "✓" if m.progress.tested else "–" }}</div>
+          </div>
+          {{ ui.icon("chev-right", "chev") }}
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
 </div>

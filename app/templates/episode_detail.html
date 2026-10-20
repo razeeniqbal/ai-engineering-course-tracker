@@ -1,27 +1,43 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% set e = row.episode %}
 {% set p = row.progress %}
 {% block title %}{{ e.code }} · Course Tracker{% endblock %}
 {% block content %}
-<p><a href="/episodes">← All episodes</a></p>
-<h1><span class="code">{{ e.code }} · {{ "Concept" if e.type == "C" else "Build" }}</span><br>{{ e.title }}
-  {% if e.is_pilot %}<span class="tag">pilot</span>{% endif %}</h1>
-<p class="muted"><a href="/modules/{{ e.module.number }}">Module {{ e.module.number }} · {{ e.module.title }}</a></p>
+<div data-reload-on-status>
+<a class="back" href="/episodes">{{ ui.icon("chev-left") }}Episodes</a>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">{{ e.code }} · {{ "Concept" if e.type == "C" else "Build" }} · <a href="/modules/{{ e.module.number }}">Module {{ e.module.number }}</a>
+      {% if e.is_pilot %}<span class="tag">pilot</span>{% endif %}</div>
+    <h1>{{ e.title }}</h1>
+  </div>
+</div>
 
 <section class="card" aria-labelledby="status-h">
-  <h2 id="status-h">Status</h2>
-  {% if request.query_params.get("publish") or errors %}
-    {% include "partials/publish_form.html" %}
-  {% else %}
-    {% include "partials/status_control.html" %}
-  {% endif %}
+  <div class="card-head">
+    <h2 id="status-h">Status</h2>
+    {% if request.query_params.get("publish") or errors %}
+      {% include "partials/publish_form.html" %}
+    {% else %}
+      {% include "partials/status_control.html" %}
+    {% endif %}
+  </div>
+  {{ ui.stepper(stage) }}
   {% if p.status == "published" or p.video_url %}
-  <h3>Publication</h3>
-  <p>
-    {% if p.video_url %}<a href="{{ p.video_url }}" rel="noopener noreferrer" target="_blank">{{ p.video_url }}</a><br>{% endif %}
-    {% if p.final_length_seconds %}Length {{ p.final_length_seconds | duration }}{% endif %}
-    {% if p.published_on %} · Published {{ p.published_on.strftime("%d %b %Y") }}{% endif %}
-  </p>
+  <div class="group inset mt-l">
+    {% if p.video_url %}
+    <a class="row-item" href="{{ p.video_url }}" rel="noopener noreferrer" target="_blank">
+      <span class="feed-icon feed-published">{{ ui.icon("recorded") }}</span>
+      <div class="row-main"><div class="row-title">Watch video</div><div class="row-sub">{{ p.video_url }}</div></div>
+      {{ ui.icon("chev-right", "chev") }}
+    </a>
+    {% endif %}
+    <div class="row-item">
+      <div class="row-main"><div class="row-sub">Final length</div><div class="row-title num">{{ (p.final_length_seconds | duration) or "—" }}</div></div>
+      <div class="row-main"><div class="row-sub">Published</div><div class="row-title">{{ p.published_on.strftime("%d %b %Y") if p.published_on else "—" }}</div></div>
+    </div>
+  </div>
   <details>
     <summary>Edit link, length or date</summary>
     {% with plain=True %}{% include "partials/publish_form.html" %}{% endwith %}
@@ -31,50 +47,57 @@
 
 <div class="grid grid-2">
   <section class="card" aria-labelledby="spec-h">
-    <h2 id="spec-h">Spec</h2>
+    <div class="card-head"><h2 id="spec-h">Spec</h2></div>
     <dl class="spec">
-      <dt>Hook</dt><dd>{{ e.hook }}</dd>
-      <dt>Claim</dt><dd>{{ e.claim }}</dd>
-      <dt>Show</dt><dd>{{ e.show }}</dd>
-      <dt>Gotcha</dt><dd>{{ e.gotcha }}</dd>
-      <dt>Takeaway</dt><dd>{{ e.takeaway }}</dd>
+      <div><dt>Hook</dt><dd>{{ e.hook }}</dd></div>
+      <div><dt>Claim</dt><dd class="claim">{{ e.claim }}</dd></div>
+      <div><dt>Show</dt><dd>{{ e.show }}</dd></div>
+      <div><dt>Gotcha</dt><dd>{{ e.gotcha }}</dd></div>
+      <div><dt>Takeaway</dt><dd>{{ e.takeaway }}</dd></div>
     </dl>
   </section>
 
-  <section class="card" aria-labelledby="time-h">
-    <h2 id="time-h">Production time</h2>
-    <form method="post" action="/episodes/{{ e.episode_key }}/production"
-          hx-post="/episodes/{{ e.episode_key }}/production" hx-target="find .result">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="row">
-        <div><label for="t-script">Scripting (min)</label>
-          <input id="t-script" name="scripting_min" type="number" min="0" inputmode="numeric" value="{{ times.scripting_min if times.scripting_min is not none else '' }}"></div>
-        <div><label for="t-prep">Demo prep (min)</label>
-          <input id="t-prep" name="prep_min" type="number" min="0" inputmode="numeric" value="{{ times.prep_min if times.prep_min is not none else '' }}"></div>
-      </div>
-      <div class="row">
-        <div><label for="t-takes">Recording takes</label>
-          <input id="t-takes" name="takes" type="number" min="0" inputmode="numeric" value="{{ times.takes if times.takes is not none else '' }}"></div>
-        <div><label for="t-edit">Editing (min)</label>
-          <input id="t-edit" name="editing_min" type="number" min="0" inputmode="numeric" value="{{ times.editing_min if times.editing_min is not none else '' }}"></div>
-      </div>
-      <p></p>
-      <button type="submit">Save times</button> <span class="result" aria-live="polite"></span>
-    </form>
-  </section>
+  <div class="stack">
+    <section class="card" aria-labelledby="time-h">
+      <div class="card-head"><h2 id="time-h">Production time</h2><span class="caption">Total {{ ui.minutes(total_minutes) }}</span></div>
+      <form method="post" action="/episodes/{{ e.episode_key }}/production"
+            hx-post="/episodes/{{ e.episode_key }}/production" hx-target="find .result">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-row">
+          <div><label for="t-script">Scripting (min)</label>
+            <input id="t-script" name="scripting_min" type="number" min="0" inputmode="numeric" value="{{ times.scripting_min if times.scripting_min is not none else '' }}"></div>
+          <div><label for="t-prep">Demo prep (min)</label>
+            <input id="t-prep" name="prep_min" type="number" min="0" inputmode="numeric" value="{{ times.prep_min if times.prep_min is not none else '' }}"></div>
+        </div>
+        <div class="form-row">
+          <div><label for="t-takes">Recording takes</label>
+            <input id="t-takes" name="takes" type="number" min="0" inputmode="numeric" value="{{ times.takes if times.takes is not none else '' }}"></div>
+          <div><label for="t-edit">Editing (min)</label>
+            <input id="t-edit" name="editing_min" type="number" min="0" inputmode="numeric" value="{{ times.editing_min if times.editing_min is not none else '' }}"></div>
+        </div>
+        <div class="actions"><button type="submit">Save times</button><span class="result" aria-live="polite"></span></div>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="hist-h">
+      <div class="card-head"><h2 id="hist-h">Timeline</h2><span class="caption">Malaysia time</span></div>
+      {% if history %}
+      <ol class="timeline">
+        {% for ev in history %}
+        <li class="status-{{ ev.to_status }}">
+          <div class="row-title">{{ STATUS_LABELS[ev.to_status] }}</div>
+          <div class="row-sub">from {{ STATUS_LABELS[ev.from_status] }} · {{ ev.changed_at | local }}</div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="muted">No status changes yet. Pick a status above to start the timeline.</p>{% endif %}
+    </section>
+  </div>
 </div>
 
-<section class="card" aria-labelledby="hist-h">
-  <h2 id="hist-h">History</h2>
-  {% if history %}
-  <table>
-    <thead><tr><th>When (MYT)</th><th>Change</th></tr></thead>
-    <tbody>
-    {% for ev in history %}
-      <tr><td>{{ ev.changed_at | local }}</td><td>{{ STATUS_LABELS[ev.from_status] }} → {{ STATUS_LABELS[ev.to_status] }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}<p class="muted">No status changes yet.</p>{% endif %}
-</section>
+<nav class="pager" aria-label="Other episodes">
+  {% if nav.prev %}<a href="/episodes/{{ nav.prev.episode_key }}"><div class="dir">‹ {{ nav.prev.code }}</div><div class="t">{{ nav.prev.title }}</div></a>{% else %}<span></span>{% endif %}
+  {% if nav.next %}<a class="next" href="/episodes/{{ nav.next.episode_key }}"><div class="dir">{{ nav.next.code }} ›</div><div class="t">{{ nav.next.title }}</div></a>{% endif %}
+</nav>
+</div>
 {% endblock %}

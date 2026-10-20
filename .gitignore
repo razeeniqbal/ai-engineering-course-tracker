@@ -8,3 +8,5 @@ backups/
 *.dump
 *.dump.gpg
 *.local.txt
+.neon.local.env
+*.local.ps1

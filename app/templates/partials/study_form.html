@@ -1,6 +1,6 @@
 <form method="post" action="/study" {% if not fixed_module %}hx-post="/study" hx-target="find .result" data-reset-on-success{% endif %}>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="row">
+  <div class="form-row">
     {% if fixed_module %}
     <input type="hidden" name="module_number" value="{{ fixed_module.number }}">
     {% else %}
@@ -24,6 +24,5 @@
   </div>
   <label for="study-note">Note (one line)</label>
   <input id="study-note" name="note" type="text" maxlength="500">
-  <p></p>
-  <button type="submit">Log time</button> <span class="result" aria-live="polite"></span>
+  <div class="actions"><button type="submit">Log time</button><span class="result" aria-live="polite"></span></div>
 </form>

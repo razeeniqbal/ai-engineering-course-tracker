@@ -1,18 +1,19 @@
-<section id="episode-list" class="card" aria-live="polite">
-  <p class="muted">{{ rows | length }} episode{{ "" if rows | length == 1 else "s" }}</p>
-  <ul class="list">
+<section id="episode-list" aria-live="polite">
+  <div class="section-label">{{ rows | length }} episode{{ "" if rows | length == 1 else "s" }}</div>
+  <div class="group">
     {% for row in rows %}
-    <li>
-      <div class="ep-title">
-        <span class="code">{{ row.episode.code }} · {{ row.episode.type }}</span>
-        <a href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a>
-        {% if row.episode.is_pilot %}<span class="tag">pilot</span>{% endif %}
-        <div class="muted">Module {{ row.episode.module.number }}</div>
+    <div class="row-item">
+      <div class="row-main">
+        <a class="row-title" href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a>
+        <div class="row-sub">
+          {{ row.episode.code }} · {{ "Concept" if row.episode.type == "C" else "Build" }} · Module {{ row.episode.module.number }}
+          {% if row.episode.is_pilot %}<span class="tag">pilot</span>{% endif %}
+        </div>
       </div>
       {% include "partials/status_control.html" %}
-    </li>
+    </div>
     {% else %}
-    <li>No episodes match.</li>
+    <p class="empty">No episodes match.</p>
     {% endfor %}
-  </ul>
+  </div>
 </section>

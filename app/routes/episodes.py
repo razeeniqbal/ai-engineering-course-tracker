@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
-from app import services
+from app import insights, services
 from app.db import get_db
 from app.importer import active_version
 from app.models import Module
@@ -38,11 +38,17 @@ def episodes(request: Request, module: str = "", status: str = "", type: str = "
     return render(request, "episodes.html", **context)
 
 
+def _detail_context(db: Session, row: services.EpisodeRow) -> dict:
+    key = row.episode.episode_key
+    times = services.production_time(db, key)
+    return dict(row=row, history=services.status_history(db, key), times=times,
+                total_minutes=insights.production_minutes(times), nav=insights.neighbours(db, row.episode),
+                stage=insights.STAGE[row.progress.status], today=local_today(), page="episodes")
+
+
 @router.get("/episodes/{episode_key}")
 def episode_detail(request: Request, episode_key: str, db: Session = Depends(get_db)):
-    row = services.get_episode(db, episode_key)
-    return render(request, "episode_detail.html", row=row, history=services.status_history(db, episode_key),
-                  times=services.production_time(db, episode_key), today=local_today(), page="episodes")
+    return render(request, "episode_detail.html", **_detail_context(db, services.get_episode(db, episode_key)))
 
 
 @router.get("/episodes/{episode_key}/status")
@@ -90,9 +96,8 @@ def publish(request: Request, episode_key: str, video_url: str = Form(""), lengt
         if is_htmx(request):
             return render(request, "partials/publish_form.html", status_code=422, row=row, today=local_today(),
                           errors=errors, values=values)
-        return render(request, "episode_detail.html", status_code=422, row=row, today=local_today(),
-                      errors=errors, values=values, history=services.status_history(db, episode_key),
-                      times=services.production_time(db, episode_key), page="episodes")
+        return render(request, "episode_detail.html", status_code=422, errors=errors, values=values,
+                      **_detail_context(db, row))
     services.publish(db, episode_key, video_url, seconds, day)
     if not is_htmx(request):
         return redirect(f"/episodes/{episode_key}")

@@ -1,0 +1,88 @@
+{# Shared UI pieces. Import with: {% import "_ui.html" as ui %} #}
+
+{% set ICONS = {
+  "home": '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
+  "episodes": '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9.5 5 2.5-5 2.5z" fill="currentColor"/>',
+  "modules": '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>',
+  "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  "chev-right": '<path d="m9 5 7 7-7 7"/>',
+  "chev-left": '<path d="m15 5-7 7 7 7"/>',
+  "flame": '<path d="M12 22c4 0 7-2.7 7-6.8 0-3.6-2.5-6-4-8.2-.6 2-1.6 3-3 3.5.3-3-1-6-4-8.5.2 4-4 6.8-4 12.4C4 19.2 7.6 22 12 22z"/>',
+  "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  "pace": '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  "flag": '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  "not_started": '<circle cx="12" cy="12" r="8"/>',
+  "scripted": '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  "recorded": '<rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="m15.5 10 6-3.5v11l-6-3.5"/>',
+  "edited": '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/>',
+  "published": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  "study": '<path d="M2 6.5 12 3l10 3.5-10 3.5z"/><path d="M6 8.5V14c0 1.7 2.7 3 6 3s6-1.3 6-3V8.5"/>',
+  "search": '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  "logout": '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
+  "spark": '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+} %}
+
+{% macro icon(name, cls="icon") -%}
+<svg class="{{ cls }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ ICONS[name] | safe }}</svg>
+{%- endmacro %}
+
+{% macro chip(slug) -%}
+<span class="chip"><span class="dot dot-{{ slug }}"></span>{{ STATUS_LABELS[slug] }}</span>
+{%- endmacro %}
+
+{# Apple-Activity style concentric rings. #}
+{% macro activity_rings(rings) -%}
+<svg class="rings" viewBox="0 0 150 150" role="img" aria-label="{% for r in rings %}{{ r.label }} {{ r.percent }}%{{ ', ' if not loop.last }}{% endfor %}">
+  {% for r in rings %}
+    {% set radius = 64 - loop.index0 * 17 %}
+    {% set c = 2 * 3.14159265 * radius %}
+    {% set p = [r.percent, 100] | min %}
+    <circle class="track ring-{{ r.key }}" cx="75" cy="75" r="{{ radius }}" fill="none" stroke-width="13"/>
+    {% if p > 0 %}
+    <circle class="ring-{{ r.key }}" cx="75" cy="75" r="{{ radius }}" fill="none" stroke-width="13" stroke-linecap="round"
+            stroke-dasharray="{{ '%.2f' % c }}" stroke-dashoffset="{{ '%.2f' % (c * (1 - p / 100)) }}" transform="rotate(-90 75 75)"/>
+    {% endif %}
+  {% endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro mini_ring(percent, key="publish", label="") -%}
+{% set radius = 23 %}{% set c = 2 * 3.14159265 * radius %}{% set p = [percent, 100] | min %}
+<svg class="mini-ring" viewBox="0 0 56 56" role="img" aria-label="{{ label or (percent ~ '%') }}">
+  <circle class="track ring-{{ key }}" cx="28" cy="28" r="{{ radius }}" fill="none" stroke-width="6" opacity=".22"/>
+  {% if p > 0 %}
+  <circle class="ring-{{ key }}" cx="28" cy="28" r="{{ radius }}" fill="none" stroke-width="6" stroke-linecap="round"
+          stroke-dasharray="{{ '%.2f' % c }}" stroke-dashoffset="{{ '%.2f' % (c * (1 - p / 100)) }}" transform="rotate(-90 28 28)"/>
+  {% endif %}
+  <text x="28" y="32.5" text-anchor="middle">{{ percent }}%</text>
+</svg>
+{%- endmacro %}
+
+{# Horizontal stacked bar of episodes per status, with a 0.6-unit gap between segments. #}
+{% macro status_bar(breakdown, total) -%}
+{% set ns = namespace(x=0) %}
+{% set shown = breakdown | selectattr(2) | list %}
+<svg class="statusbar" viewBox="0 0 100 12" preserveAspectRatio="none" role="img"
+     aria-label="{% for slug, label, n in breakdown %}{{ label }} {{ n }}{{ ', ' if not loop.last }}{% endfor %}">
+  {% for slug, label, n in shown %}
+    {% set w = 100 * n / (total or 1) %}
+    <rect class="fill-{{ slug }}" x="{{ '%.3f' % ns.x }}" y="0" width="{{ '%.3f' % ([w - (0 if loop.last else 0.6), 0.4] | max) }}" height="12" rx="1.2"><title>{{ label }}: {{ n }}</title></rect>
+    {% set ns.x = ns.x + w %}
+  {% endfor %}
+</svg>
+<div class="legend">
+  {% for slug, label, n in breakdown %}<span><span class="dot dot-{{ slug }}"></span>{{ label }} <b>{{ n }}</b></span>{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro stepper(stage) -%}
+<ol class="stepper" aria-label="Production stage">
+  {% for slug, label in STATUSES %}
+  <li class="{{ 'done' if loop.index0 < stage else ('current' if loop.index0 == stage else '') }}"{% if loop.index0 == stage %} aria-current="step"{% endif %}>{{ label }}</li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+{% macro minutes(m) -%}
+{%- if m >= 60 -%}{{ m // 60 }}h {{ '%02d' % (m % 60) }}m{%- else -%}{{ m }}m{%- endif -%}
+{%- endmacro %}

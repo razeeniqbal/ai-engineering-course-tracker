@@ -27,7 +27,7 @@ def test_status_change_records_dated_history(authed, course, db):
     assert db.get(EpisodeProgress, ep.episode_key).status == "recorded"
 
     page = authed.get(f"/episodes/{ep.episode_key}").text
-    assert "Scripted → Recorded" in page
+    assert "from Scripted" in page and "Production stage" in page
 
 
 def test_dashboard_counts_update(authed, course, db):

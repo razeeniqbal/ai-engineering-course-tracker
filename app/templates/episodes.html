@@ -1,35 +1,38 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Episodes · Course Tracker{% endblock %}
 {% block content %}
-<h1>Episodes</h1>
-<form class="card filters" method="get" action="/episodes" role="search"
+<div class="page-head"><h1>Episodes</h1></div>
+<form class="filters" method="get" action="/episodes" role="search"
       hx-get="/episodes" hx-target="#episode-list" hx-swap="outerHTML" hx-push-url="true"
       hx-trigger="change, input from:#q delay:300ms, submit">
-  <div>
-    <label for="q">Search</label>
-    <input id="q" name="q" type="search" value="{{ f.q }}" placeholder="Code, title or claim">
+  <div class="search">
+    {{ ui.icon("search") }}
+    <label class="visually-hidden" for="q">Search</label>
+    <input id="q" name="q" type="search" value="{{ f.q }}" placeholder="Search code, title or claim">
   </div>
-  <div>
-    <label for="f-module">Module</label>
-    <select id="f-module" name="module">
-      <option value="">All</option>
-      {% for m in modules %}<option value="{{ m.number }}" {% if f.module == m.number|string %}selected{% endif %}>{{ m.number }}. {{ m.title }}</option>{% endfor %}
-    </select>
-  </div>
-  <div>
-    <label for="f-status">Status</label>
-    <select id="f-status" name="status">
-      <option value="">All</option>
-      {% for slug, label in STATUSES %}<option value="{{ slug }}" {% if f.status == slug %}selected{% endif %}>{{ label }}</option>{% endfor %}
-    </select>
-  </div>
-  <div>
-    <label for="f-type">Type</label>
-    <select id="f-type" name="type">
-      <option value="">All</option>
-      <option value="C" {% if f.type == "C" %}selected{% endif %}>C · Concept</option>
-      <option value="B" {% if f.type == "B" %}selected{% endif %}>B · Build</option>
-    </select>
+  <fieldset class="segmented" aria-label="Status">
+    <label><input type="radio" name="status" value="" {% if not f.status %}checked{% endif %}><span>All</span></label>
+    {% for slug, label in STATUSES %}
+    <label><input type="radio" name="status" value="{{ slug }}" {% if f.status == slug %}checked{% endif %}><span>{{ label }}</span></label>
+    {% endfor %}
+  </fieldset>
+  <div class="selects">
+    <div>
+      <label class="visually-hidden" for="f-module">Module</label>
+      <select id="f-module" name="module">
+        <option value="">All modules</option>
+        {% for m in modules %}<option value="{{ m.number }}" {% if f.module == m.number|string %}selected{% endif %}>{{ m.number }}. {{ m.title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="visually-hidden" for="f-type">Type</label>
+      <select id="f-type" name="type">
+        <option value="">Concept and Build</option>
+        <option value="C" {% if f.type == "C" %}selected{% endif %}>Concept only</option>
+        <option value="B" {% if f.type == "B" %}selected{% endif %}>Build only</option>
+      </select>
+    </div>
   </div>
   <noscript><button type="submit">Filter</button></noscript>
 </form>

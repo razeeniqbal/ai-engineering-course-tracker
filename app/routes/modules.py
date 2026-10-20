@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
-from app import services
+from app import insights, services
 from app.db import get_db
 from app.models import StudySession
 from app.timeutil import local_today
@@ -22,7 +22,7 @@ def modules(request: Request, db: Session = Depends(get_db)):
 @router.get("/modules/{number}")
 def module_detail(request: Request, number: int, db: Session = Depends(get_db)):
     module = services.get_module(db, number)
-    return render(request, "module_detail.html", module=module,
+    return render(request, "module_detail.html", module=module, stats=insights.module_stats(db, module),
                   progress=services.module_progress(db, module.module_key),
                   rows=services.episode_rows(db, module_number=number),
                   sessions=services.study_sessions(db, module.module_key), today=local_today(), page="modules")

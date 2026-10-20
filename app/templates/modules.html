@@ -1,24 +1,21 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Modules · Course Tracker{% endblock %}
 {% block content %}
-<h1>Modules</h1>
-{% if not rows %}<div class="card"><p>No course loaded. <a href="/settings">Import it in Settings.</a></p></div>{% endif %}
-<ul class="list card">
+<div class="page-head"><h1>Modules</h1></div>
+{% if not rows %}<div class="card"><p class="muted">No course loaded.</p><a class="button" href="/settings">Import it in Settings</a></div>{% endif %}
+<div class="group">
   {% for m in rows %}
-  <li>
-    <div class="ep-title">
-      <span class="code">Module {{ m.module.number }} · {{ m.module.depth }}</span>
-      <a href="/modules/{{ m.module.number }}">{{ m.module.title }}</a>
-      <div class="muted">
-        {{ m.published }}/{{ m.total }} published · {{ m.study_minutes | hours }} h studied
-      </div>
+  {% set ticks = (m.progress.learned | int) + (m.progress.built | int) + (m.progress.tested | int) %}
+  <a class="row-item" href="/modules/{{ m.module.number }}">
+    {{ ui.mini_ring((100 * m.published / m.total) | round | int if m.total else 0, "publish", m.published ~ " of " ~ m.total ~ " published") }}
+    <div class="row-main">
+      <div class="row-sub">Module {{ m.module.number }} · {{ m.module.depth }}</div>
+      <div class="row-title">{{ m.module.title }}</div>
+      <div class="row-sub">{{ m.published }}/{{ m.total }} published · {{ ticks }}/3 learning ticks · {{ m.study_minutes | hours }} h studied</div>
     </div>
-    <div class="muted">
-      {{ "✓ Learned" if m.progress.learned else "○ Learned" }} ·
-      {{ "✓ Built" if m.progress.built else "○ Built" }} ·
-      {{ "✓ Tested" if m.progress.tested else "○ Tested" }}
-    </div>
-  </li>
+    {{ ui.icon("chev-right", "chev") }}
+  </a>
   {% endfor %}
-</ul>
+</div>
 {% endblock %}

@@ -6,6 +6,11 @@ document.addEventListener("htmx:afterRequest", (event) => {
   }
 });
 
+// On pages whose stepper and timeline depend on the status, reload after a change.
+document.body.addEventListener("statusChanged", () => {
+  if (document.querySelector("[data-reload-on-status]")) window.location.reload();
+});
+
 // Show server error text (e.g. a 403 CSRF message) instead of failing silently.
 document.addEventListener("htmx:responseError", (event) => {
   const text = event.detail.xhr.responseText;

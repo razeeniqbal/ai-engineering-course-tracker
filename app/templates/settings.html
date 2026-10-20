@@ -1,16 +1,23 @@
 {% extends "base.html" %}
+{% import "_ui.html" as ui %}
 {% block title %}Settings · Course Tracker{% endblock %}
 {% block content %}
-<h1>Settings and data</h1>
+<div class="page-head"><h1>Settings</h1></div>
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
 
-<section class="card" aria-labelledby="course-h">
-  <h2 id="course-h">Course</h2>
+<div class="section-label">Course</div>
+<section class="card" aria-label="Course">
   {% if version %}
-  <p>Loaded: <strong>{{ version.label }}</strong>, imported {{ version.imported_at | local }} (MYT).</p>
-  <p class="muted">Importing a new course version (with title matching and approval) arrives in v1.</p>
+  <div class="row-item inline">
+    <span class="feed-icon feed-study">{{ ui.icon("modules") }}</span>
+    <div class="row-main">
+      <div class="row-title">Course {{ version.label }}</div>
+      <div class="row-sub">Imported {{ version.imported_at | local }} (Malaysia time)</div>
+    </div>
+  </div>
+  <p class="caption mt">Importing a new course version (with title matching and approval) arrives in v1.</p>
   {% else %}
-  <p>Upload the course markdown to load its modules and episodes.</p>
+  <p class="muted">Upload the course markdown to load its modules and episodes.</p>
   {% endif %}
   {% if import_errors %}
   <div class="errors" role="alert"><p>Import failed:</p><ul>{% for e in import_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
@@ -22,28 +29,30 @@
     <input id="course_file" name="course_file" type="file" accept=".md,text/markdown,text/plain" required>
     <label for="label">Version label (optional)</label>
     <input id="label" name="label" type="text" placeholder="Read from the file, e.g. v7" maxlength="32">
-    <p></p>
-    <button type="submit">Import course</button>
+    <div class="actions"><button type="submit">Import course</button></div>
   </form>
   {% endif %}
 </section>
 
-<section class="card" aria-labelledby="export-h">
-  <h2 id="export-h">Export</h2>
-  <p>Download everything you've logged. Passwords are never included.</p>
-  <div class="row">
-    <a class="button" href="/export/json">All data (JSON)</a>
+<div class="section-label">Your data</div>
+<section class="card" aria-label="Export">
+  <p class="muted">Download everything you've logged. Passwords are never included.</p>
+  <div class="actions">
+    <a class="button" href="/export/json">Export all (JSON)</a>
     <a class="button secondary" href="/export/csv">All tables (CSV zip)</a>
   </div>
-  <details>
+  <details class="mt">
     <summary>One table as CSV</summary>
-    <ul>{% for t in tables %}<li><a href="/export/csv/{{ t }}">{{ t }}.csv</a></li>{% endfor %}</ul>
+    <div class="group inset">
+      {% for t in tables %}<a class="row-item" href="/export/csv/{{ t }}"><div class="row-main row-title">{{ t }}.csv</div>{{ ui.icon("chev-right", "chev") }}</a>{% endfor %}
+    </div>
   </details>
 </section>
 
-<section class="card" aria-labelledby="pw-h">
-  <h2 id="pw-h">Change password</h2>
-  {% if password_error %}<p class="error" role="alert">{{ password_error }}</p>{% endif %}
+<div class="section-label">Security</div>
+<section class="card" aria-label="Change password">
+  <h2>Change password</h2>
+  {% if password_error %}<p class="error mt" role="alert">{{ password_error }}</p>{% endif %}
   <form method="post" action="/settings/password">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label for="cur">Current password</label>
@@ -52,9 +61,13 @@
     <input id="new" name="new_password" type="password" autocomplete="new-password" minlength="12" required>
     <label for="conf">Repeat new password</label>
     <input id="conf" name="confirm_password" type="password" autocomplete="new-password" minlength="12" required>
-    <p></p>
-    <button type="submit">Change password</button>
+    <div class="actions"><button type="submit">Change password</button></div>
   </form>
-  <p class="muted">Changing your password signs out every other device.</p>
+  <p class="caption mt">Changing your password signs out every other device.</p>
 </section>
+
+<form method="post" action="/logout" class="group">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button class="danger-plain row-item block" type="submit">Sign out</button>
+</form>
 {% endblock %}
