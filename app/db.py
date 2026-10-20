@@ -15,6 +15,11 @@ def make_engine(url: str) -> Engine:
     kwargs = {"pool_pre_ping": True}
     if url.startswith("sqlite"):
         kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        # Serverless hosts put a connection pooler (PgBouncer) in front of Postgres;
+        # server-side prepared statements don't survive it, so turn them off.
+        kwargs["connect_args"] = {"prepare_threshold": None}
+        kwargs["pool_size"] = 3
     return create_engine(url, **kwargs)
 
 

@@ -44,9 +44,15 @@ def load_settings() -> Settings:
         if env not in {"dev", "test"}:
             raise RuntimeError("SECRET_KEY must be set outside dev/test")
         secret = "dev-only-insecure-secret"
+    # POSTGRES_URL is what some Vercel storage integrations set instead of DATABASE_URL.
+    database_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
+    if not database_url:
+        if env not in {"dev", "test"}:
+            raise RuntimeError("DATABASE_URL must be set outside dev/test")
+        database_url = "sqlite:///./dev.db"
     return Settings(
         env=env,
-        database_url=normalize_db_url(os.getenv("DATABASE_URL", "sqlite:///./dev.db")),
+        database_url=normalize_db_url(database_url),
         secret_key=secret,
         cookie_secure=_bool("COOKIE_SECURE", env not in {"dev", "test"}),
         session_max_age=int(os.getenv("SESSION_MAX_AGE", str(14 * 24 * 3600))),

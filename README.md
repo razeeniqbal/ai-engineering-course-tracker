@@ -55,7 +55,47 @@ There is no sign-up page. Accounts are managed on the server:
 | `python -m app.cli unlock --email X` | Clears a 15-minute lockout early |
 | `python -m app.cli import-course FILE [--label v7]` | Loads the course markdown |
 
-## Deploying
+## Deploy to Vercel (free Hobby plan)
+
+Vercel runs the app as a serverless function and Neon (added from Vercel's Storage tab)
+provides Postgres. Every push to `main` redeploys, and each build runs `alembic upgrade head`
+first (see `pyproject.toml`).
+
+1. **Import the repo.** On vercel.com, sign in with GitHub → *Add New… → Project* → import
+   `ai-engineering-course-tracker`. Leave the framework as detected (FastAPI). Don't deploy yet
+   if it offers; if it deploys and fails, that's expected until steps 2–3 are done.
+2. **Add a database.** In the project: *Storage → Create Database → Neon (Postgres)* → region
+   Singapore (closest to Malaysia) → connect it to the project for all environments. This sets
+   `DATABASE_URL` for you.
+3. **Add settings.** *Settings → Environment Variables*, for Production and Preview:
+   - `SECRET_KEY`: a long random string (`python -c "import secrets; print(secrets.token_urlsafe(48))"`)
+   - `APP_ENV` = `production`
+4. **Deploy.** *Deployments → Redeploy*. The build log should show
+   `Running upgrade -> 0001, initial schema`.
+5. **Create your login** (once, from your computer). Copy the Neon connection string from
+   *Storage → your database → .env.local tab* and run in PowerShell from this folder:
+   ```powershell
+   $env:APP_ENV="production"; $env:SECRET_KEY="anything"; $env:DATABASE_URL="<paste the Neon URL>"
+   .venv\Scripts\python -m app.cli create-owner --email you@example.com
+   ```
+   It asks for your password twice (12+ characters).
+6. **Sign in** at your `*.vercel.app` address → *Settings* → upload
+   `course/AI_Engineering_Course_Razeen_v7.md` → *Import course*.
+7. **Turn on nightly backups.** On GitHub: repo *Settings → Secrets and variables → Actions →
+   New repository secret*, add `BACKUP_DATABASE_URL` (Neon's **unpooled** connection string) and
+   `BACKUP_PASSPHRASE` (20+ random characters, saved in your password manager). Then *Actions →
+   Nightly backup → Run workflow* to test it. Backups are encrypted because anyone signed in to
+   GitHub can download artifacts from a public repo.
+
+Trade-offs versus a container host: the first request after a quiet spell is slower (cold
+start), and the database is reachable over the internet (protected by its password and TLS)
+rather than private to the host. Neon also keeps its own short point-in-time history you can
+restore from in its console.
+
+To restore a GitHub backup: download the artifact from the workflow run, unzip it, and follow
+*Backups and restore* below with `BACKUP_PASSPHRASE` set.
+
+## Deploying to a container host
 
 Any container host works (Render, Fly.io, Railway, or a small VPS). Check current pricing first.
 

@@ -1,0 +1,23 @@
+# Used by Vercel (which installs from here) and kept in step with requirements.txt
+# (used by Docker and CI) by tests/test_deploy_config.py.
+[project]
+name = "course-tracker"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic==1.20.0",
+    "argon2-cffi==25.1.0",
+    "fastapi==0.150.0",
+    "itsdangerous==2.2.0",
+    "Jinja2==3.1.6",
+    "psycopg[binary]==3.3.6",
+    "python-multipart==0.0.32",
+    "SQLAlchemy==2.1.5",
+    "starlette==1.9.0",
+    "tzdata==2026.5",
+    "uvicorn[standard]==0.54.0",
+]
+
+[tool.vercel.scripts]
+# Runs after dependencies install, before deploy: brings the database schema up to date.
+build = "python -m alembic upgrade head"
