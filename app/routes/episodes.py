@@ -23,6 +23,33 @@ def dashboard_summary(request: Request, db: Session = Depends(get_db)):
     return render(request, "partials/dashboard_summary.html", d=services.dashboard(db))
 
 
+@router.get("/api/digest")
+def digest(db: Session = Depends(get_db)):
+    """At-a-glance numbers for the portfolio admin hub (signed-in only, like every page here)."""
+    d = services.dashboard(db)
+    counts = {slug: n for slug, _, n in d.by_status}
+    return {
+        "total": d.total,
+        "published": counts.get("published", 0),
+        "byStatus": [{"status": slug, "label": label, "count": n} for slug, label, n in d.by_status],
+        "rings": [{"key": r.key, "label": r.label, "percent": r.percent, "detail": r.detail} for r in d.rings],
+        "studyMinutesWeek": d.study_minutes_week,
+        "streak": d.streak,
+        "pace": {
+            "thisWeek": d.pace.this_week,
+            "target": d.pace.target,
+            "perWeek": d.pace.per_week,
+            "remaining": d.pace.remaining,
+            "finishAtPace": d.pace.finish_at_pace.isoformat() if d.pace.finish_at_pace else None,
+        },
+        "upNext": [
+            {"key": r.episode.episode_key, "code": r.episode.code, "title": r.episode.title,
+             "status": r.progress.status, "statusLabel": r.status_label}
+            for r in d.up_next[:3]
+        ],
+    }
+
+
 @router.get("/episodes")
 def episodes(request: Request, module: str = "", status: str = "", type: str = "", q: str = "",
              db: Session = Depends(get_db)):
