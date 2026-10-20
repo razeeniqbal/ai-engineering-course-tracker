@@ -196,7 +196,13 @@ def new_key(prefix: str) -> str:
 
 
 def active_version(db: Session) -> CourseVersion | None:
-    return db.scalar(select(CourseVersion).where(CourseVersion.is_active.is_(True)))
+    # Cached on the session: one page asks for it several times, and a session lives for one request.
+    if "active_version" not in db.info:
+        version = db.scalar(select(CourseVersion).where(CourseVersion.is_active.is_(True)))
+        if version is None:
+            return None
+        db.info["active_version"] = version
+    return db.info["active_version"]
 
 
 def import_course(db: Session, markdown: str, label: str | None = None) -> CourseVersion:
@@ -222,4 +228,5 @@ def import_course(db: Session, markdown: str, label: str | None = None) -> Cours
             db.add(ep)
             db.add(EpisodeProgress(episode_key=ep.episode_key))
     db.commit()
+    db.info["active_version"] = version
     return version
