@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Episodes · Course Tracker{% endblock %}
+{% block content %}
+<h1>Episodes</h1>
+<form class="card filters" method="get" action="/episodes" role="search"
+      hx-get="/episodes" hx-target="#episode-list" hx-swap="outerHTML" hx-push-url="true"
+      hx-trigger="change, input from:#q delay:300ms, submit">
+  <div>
+    <label for="q">Search</label>
+    <input id="q" name="q" type="search" value="{{ f.q }}" placeholder="Code, title or claim">
+  </div>
+  <div>
+    <label for="f-module">Module</label>
+    <select id="f-module" name="module">
+      <option value="">All</option>
+      {% for m in modules %}<option value="{{ m.number }}" {% if f.module == m.number|string %}selected{% endif %}>{{ m.number }}. {{ m.title }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="f-status">Status</label>
+    <select id="f-status" name="status">
+      <option value="">All</option>
+      {% for slug, label in STATUSES %}<option value="{{ slug }}" {% if f.status == slug %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="f-type">Type</label>
+    <select id="f-type" name="type">
+      <option value="">All</option>
+      <option value="C" {% if f.type == "C" %}selected{% endif %}>C · Concept</option>
+      <option value="B" {% if f.type == "B" %}selected{% endif %}>B · Build</option>
+    </select>
+  </div>
+  <noscript><button type="submit">Filter</button></noscript>
+</form>
+{% include "partials/episode_list.html" %}
+{% endblock %}

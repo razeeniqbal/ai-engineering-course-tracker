@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Modules · Course Tracker{% endblock %}
+{% block content %}
+<h1>Modules</h1>
+{% if not rows %}<div class="card"><p>No course loaded. <a href="/settings">Import it in Settings.</a></p></div>{% endif %}
+<ul class="list card">
+  {% for m in rows %}
+  <li>
+    <div class="ep-title">
+      <span class="code">Module {{ m.module.number }} · {{ m.module.depth }}</span>
+      <a href="/modules/{{ m.module.number }}">{{ m.module.title }}</a>
+      <div class="muted">
+        {{ m.published }}/{{ m.total }} published · {{ m.study_minutes | hours }} h studied
+      </div>
+    </div>
+    <div class="muted">
+      {{ "✓ Learned" if m.progress.learned else "○ Learned" }} ·
+      {{ "✓ Built" if m.progress.built else "○ Built" }} ·
+      {{ "✓ Tested" if m.progress.tested else "○ Tested" }}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Course Tracker{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+{% block header %}
+<header class="topbar">
+  <a class="brand" href="/">Course Tracker</a>
+  <nav class="nav" aria-label="Main">
+    <a href="/" {% if page == "dashboard" %}aria-current="page"{% endif %}>Dashboard</a>
+    <a href="/episodes" {% if page == "episodes" %}aria-current="page"{% endif %}>Episodes</a>
+    <a href="/modules" {% if page == "modules" %}aria-current="page"{% endif %}>Modules</a>
+    <a href="/settings" {% if page == "settings" %}aria-current="page"{% endif %}>Settings</a>
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="link" type="submit">Sign out</button>
+    </form>
+  </nav>
+</header>
+{% endblock %}
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

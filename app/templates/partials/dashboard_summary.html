@@ -1,0 +1,69 @@
+<div id="summary" hx-get="/dashboard/summary" hx-trigger="statusChanged from:body, studyLogged from:body"
+     hx-swap="outerHTML">
+  {% set next = d.up_next[0] if d.up_next else None %}
+  <section class="card next" aria-labelledby="next-h">
+    <h1 id="next-h" class="h-small">Next episode</h1>
+    {% if next %}
+    <ul class="list"><li>
+      <div class="ep-title">
+        <span class="code">{{ next.episode.code }} · {{ next.episode.type }}</span>
+        <a href="/episodes/{{ next.episode.episode_key }}">{{ next.episode.title }}</a>
+        <div class="muted">Module {{ next.episode.module.number }} · {{ next.episode.module.title }}</div>
+      </div>
+      {% with row=next %}{% include "partials/status_control.html" %}{% endwith %}
+    </li></ul>
+    {% else %}
+    <p>Every episode is published. 🎉</p>
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="status-h">
+    <h2 id="status-h">Episodes by status <span class="muted">({{ d.total }})</span></h2>
+    <div class="stats">
+      {% for slug, label, count in d.by_status %}
+      <a class="stat status-{{ slug }}" href="/episodes?status={{ slug }}">
+        <b>{{ count }}</b><span>{{ label }}</span>
+      </a>
+      {% endfor %}
+      <div class="stat plain">
+        <b>{{ d.study_minutes_week | hours }}</b><span>study hours this week</span>
+      </div>
+    </div>
+  </section>
+
+  {% if d.up_next | length > 1 %}
+  <section class="card" aria-labelledby="upnext-h">
+    <h2 id="upnext-h">Up next</h2>
+    <ul class="list">
+      {% for row in d.up_next[1:] %}
+      <li>
+        <div class="ep-title"><span class="code">{{ row.episode.code }}</span>
+          <a href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a></div>
+        {% include "partials/status_control.html" %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="card" aria-labelledby="mod-h">
+    <h2 id="mod-h">Progress by module</h2>
+    <table>
+      <thead><tr><th>Module</th><th>Published</th><th>L · B · T</th></tr></thead>
+      <tbody>
+      {% for m in d.modules %}
+      <tr>
+        <td><a href="/modules/{{ m.module.number }}">{{ m.module.number }}. {{ m.module.title }}</a></td>
+        <td class="bar-cell">
+          <progress value="{{ m.published }}" max="{{ m.total or 1 }}" aria-hidden="true"></progress>
+          <span class="muted">{{ m.published }}/{{ m.total }}</span>
+        </td>
+        <td aria-label="Learned {{ 'yes' if m.progress.learned else 'no' }}, built {{ 'yes' if m.progress.built else 'no' }}, tested {{ 'yes' if m.progress.tested else 'no' }}">
+          {{ "✓" if m.progress.learned else "·" }} {{ "✓" if m.progress.built else "·" }} {{ "✓" if m.progress.tested else "·" }}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>

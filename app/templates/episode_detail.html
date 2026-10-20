@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set e = row.episode %}
+{% set p = row.progress %}
+{% block title %}{{ e.code }} · Course Tracker{% endblock %}
+{% block content %}
+<p><a href="/episodes">← All episodes</a></p>
+<h1><span class="code">{{ e.code }} · {{ "Concept" if e.type == "C" else "Build" }}</span><br>{{ e.title }}
+  {% if e.is_pilot %}<span class="tag">pilot</span>{% endif %}</h1>
+<p class="muted"><a href="/modules/{{ e.module.number }}">Module {{ e.module.number }} · {{ e.module.title }}</a></p>
+
+<section class="card" aria-labelledby="status-h">
+  <h2 id="status-h">Status</h2>
+  {% if request.query_params.get("publish") or errors %}
+    {% include "partials/publish_form.html" %}
+  {% else %}
+    {% include "partials/status_control.html" %}
+  {% endif %}
+  {% if p.status == "published" or p.video_url %}
+  <h3>Publication</h3>
+  <p>
+    {% if p.video_url %}<a href="{{ p.video_url }}" rel="noopener noreferrer" target="_blank">{{ p.video_url }}</a><br>{% endif %}
+    {% if p.final_length_seconds %}Length {{ p.final_length_seconds | duration }}{% endif %}
+    {% if p.published_on %} · Published {{ p.published_on.strftime("%d %b %Y") }}{% endif %}
+  </p>
+  <details>
+    <summary>Edit link, length or date</summary>
+    {% with plain=True %}{% include "partials/publish_form.html" %}{% endwith %}
+  </details>
+  {% endif %}
+</section>
+
+<div class="grid grid-2">
+  <section class="card" aria-labelledby="spec-h">
+    <h2 id="spec-h">Spec</h2>
+    <dl class="spec">
+      <dt>Hook</dt><dd>{{ e.hook }}</dd>
+      <dt>Claim</dt><dd>{{ e.claim }}</dd>
+      <dt>Show</dt><dd>{{ e.show }}</dd>
+      <dt>Gotcha</dt><dd>{{ e.gotcha }}</dd>
+      <dt>Takeaway</dt><dd>{{ e.takeaway }}</dd>
+    </dl>
+  </section>
+
+  <section class="card" aria-labelledby="time-h">
+    <h2 id="time-h">Production time</h2>
+    <form method="post" action="/episodes/{{ e.episode_key }}/production"
+          hx-post="/episodes/{{ e.episode_key }}/production" hx-target="find .result">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="row">
+        <div><label for="t-script">Scripting (min)</label>
+          <input id="t-script" name="scripting_min" type="number" min="0" inputmode="numeric" value="{{ times.scripting_min if times.scripting_min is not none else '' }}"></div>
+        <div><label for="t-prep">Demo prep (min)</label>
+          <input id="t-prep" name="prep_min" type="number" min="0" inputmode="numeric" value="{{ times.prep_min if times.prep_min is not none else '' }}"></div>
+      </div>
+      <div class="row">
+        <div><label for="t-takes">Recording takes</label>
+          <input id="t-takes" name="takes" type="number" min="0" inputmode="numeric" value="{{ times.takes if times.takes is not none else '' }}"></div>
+        <div><label for="t-edit">Editing (min)</label>
+          <input id="t-edit" name="editing_min" type="number" min="0" inputmode="numeric" value="{{ times.editing_min if times.editing_min is not none else '' }}"></div>
+      </div>
+      <p></p>
+      <button type="submit">Save times</button> <span class="result" aria-live="polite"></span>
+    </form>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="hist-h">
+  <h2 id="hist-h">History</h2>
+  {% if history %}
+  <table>
+    <thead><tr><th>When (MYT)</th><th>Change</th></tr></thead>
+    <tbody>
+    {% for ev in history %}
+      <tr><td>{{ ev.changed_at | local }}</td><td>{{ STATUS_LABELS[ev.from_status] }} → {{ STATUS_LABELS[ev.to_status] }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No status changes yet.</p>{% endif %}
+</section>
+{% endblock %}

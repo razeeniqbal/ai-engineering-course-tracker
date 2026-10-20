@@ -1,0 +1,18 @@
+<section id="episode-list" class="card" aria-live="polite">
+  <p class="muted">{{ rows | length }} episode{{ "" if rows | length == 1 else "s" }}</p>
+  <ul class="list">
+    {% for row in rows %}
+    <li>
+      <div class="ep-title">
+        <span class="code">{{ row.episode.code }} · {{ row.episode.type }}</span>
+        <a href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a>
+        {% if row.episode.is_pilot %}<span class="tag">pilot</span>{% endif %}
+        <div class="muted">Module {{ row.episode.module.number }}</div>
+      </div>
+      {% include "partials/status_control.html" %}
+    </li>
+    {% else %}
+    <li>No episodes match.</li>
+    {% endfor %}
+  </ul>
+</section>

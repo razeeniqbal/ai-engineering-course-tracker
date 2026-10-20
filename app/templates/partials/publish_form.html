@@ -1,0 +1,29 @@
+{% set key = row.episode.episode_key %}
+{% set v = values or {} %}
+<form class="publish-form" {% if not plain %}id="publish"{% endif %} method="post" action="/episodes/{{ key }}/publish"
+      {% if not plain %}hx-post="/episodes/{{ key }}/publish" hx-swap="outerHTML"{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if not plain %}<strong>Publish {{ row.episode.code }}</strong>{% endif %}
+  {% if errors %}<ul class="errors" role="alert">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <label for="url-{{ key }}">Video link</label>
+  <input id="url-{{ key }}" name="video_url" type="url" required placeholder="https://youtu.be/…"
+         value="{{ v.video_url or row.progress.video_url or '' }}" autofocus>
+  <div class="row">
+    <div>
+      <label for="len-{{ key }}">Final length (m:ss)</label>
+      <input id="len-{{ key }}" name="length" type="text" inputmode="numeric" required placeholder="2:05"
+             value="{{ v.length or (row.progress.final_length_seconds | duration) }}">
+    </div>
+    <div>
+      <label for="date-{{ key }}">Publish date</label>
+      <input id="date-{{ key }}" name="published_on" type="date"
+             value="{{ v.published_on or row.progress.published_on or today }}">
+    </div>
+  </div>
+  <p></p>
+  <div class="row">
+    <button type="submit">{{ "Save" if plain else "Mark published" }}</button>
+    {% if not plain %}<button type="button" class="secondary" hx-get="/episodes/{{ key }}/status" hx-target="closest form"
+            hx-swap="outerHTML">Cancel</button>{% endif %}
+  </div>
+</form>

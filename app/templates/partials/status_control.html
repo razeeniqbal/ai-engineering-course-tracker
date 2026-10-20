@@ -1,0 +1,13 @@
+{% set key = row.episode.episode_key %}
+<form class="status-control" method="post" action="/episodes/{{ key }}/status"
+      hx-post="/episodes/{{ key }}/status" hx-trigger="change" hx-swap="outerHTML">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="visually-hidden" for="status-{{ key }}">Status of {{ row.episode.code }}</label>
+  <select id="status-{{ key }}" name="status" class="status status-{{ row.progress.status }}">
+    {% for slug, label in STATUSES %}
+    <option value="{{ slug }}" {% if slug == row.progress.status %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit" class="secondary">Save</button></noscript>
+  {% if error %}<span class="error">{{ error }}</span>{% endif %}
+</form>

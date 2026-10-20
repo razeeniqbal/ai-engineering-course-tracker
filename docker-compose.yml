@@ -1,0 +1,34 @@
+# Local development: app + Postgres. Production uses a managed Postgres instead of the db service.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker
+      POSTGRES_DB: tracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracker"]
+      interval: 2s
+      retries: 20
+    # No ports: published, so the database isn't reachable from outside Docker.
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql://tracker:tracker@db:5432/tracker
+      SECRET_KEY: local-dev-secret-change-me
+      COOKIE_SECURE: "false"
+      BACKUP_DIR: /backups
+    volumes:
+      - ./backups:/backups
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  pgdata:

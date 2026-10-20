@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Module {{ module.number }} · Course Tracker{% endblock %}
+{% block content %}
+<p><a href="/modules">← All modules</a></p>
+<h1><span class="code">Module {{ module.number }} · {{ module.depth }}</span><br>{{ module.title }}</h1>
+
+<section class="card" aria-labelledby="track-h">
+  <h2 id="track-h">Your progress</h2>
+  <div class="checks">
+    {% for field, label in [("learned", "Learned"), ("built", "Built"), ("tested", "Tested")] %}
+    <form method="post" action="/modules/{{ module.number }}/check" class="check-form"
+          hx-post="/modules/{{ module.number }}/check" hx-trigger="change" hx-target="find .result">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="field" value="{{ field }}">
+      <label class="check"><input type="checkbox" name="checked" {% if progress[field] %}checked{% endif %}> {{ label }}</label>
+      <noscript><button type="submit" class="secondary">Save</button></noscript>
+      <span class="result" aria-live="polite"></span>
+    </form>
+    {% endfor %}
+  </div>
+  <form method="post" action="/modules/{{ module.number }}/notes"
+        hx-post="/modules/{{ module.number }}/notes" hx-target="find .result">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="commit">Project commit</label>
+    <input id="commit" name="commit_sha" type="text" maxlength="64" value="{{ progress.commit_sha or '' }}" placeholder="e.g. a1b2c3d">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" placeholder="Concepts in your own words, evidence, known limitation">{{ progress.notes or '' }}</textarea>
+    <p></p>
+    <button type="submit">Save notes</button> <span class="result" aria-live="polite"></span>
+  </form>
+</section>
+
+<section class="card" aria-labelledby="course-h">
+  <h2 id="course-h">From the course</h2>
+  <dl class="spec">
+    <dt>Learn</dt><dd>{{ module.learn }}</dd>
+    <dt>Build</dt><dd>{{ module.build }}</dd>
+    <dt>Checkpoint</dt><dd>{{ module.checkpoint }}</dd>
+  </dl>
+  {% if module.lab_steps %}
+  <h3>Lab steps</h3>
+  <ol>{% for step in module.lab_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+  {% if module.lab_note %}<p class="muted">{{ module.lab_note }}</p>{% endif %}
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="eps-h">
+  <h2 id="eps-h">Episodes</h2>
+  <ul class="list">
+    {% for row in rows %}
+    <li>
+      <div class="ep-title"><span class="code">{{ row.episode.code }} · {{ row.episode.type }}</span>
+        <a href="/episodes/{{ row.episode.episode_key }}">{{ row.episode.title }}</a></div>
+      {% include "partials/status_control.html" %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="card" aria-labelledby="study-h">
+  <h2 id="study-h">Study log</h2>
+  {% with fixed_module=module %}{% include "partials/study_form.html" %}{% endwith %}
+  {% if sessions %}
+  <table>
+    <thead><tr><th>Date</th><th>Min</th><th>Note</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+    {% for s in sessions %}
+      <tr>
+        <td>{{ s.studied_on.strftime("%d %b") }}</td><td>{{ s.minutes }}</td><td>{{ s.note or "" }}</td>
+        <td>
+          <form method="post" action="/study/{{ s.id }}/delete">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="link" type="submit" aria-label="Delete session on {{ s.studied_on }}">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}
