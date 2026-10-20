@@ -99,7 +99,7 @@ To restore a GitHub backup: download the artifact from the workflow run, unzip i
 
 Any container host works (Render, Fly.io, Railway, or a small VPS). Check current pricing first.
 
-1. Create a managed Postgres 17 database. Keep it private to the host's network if the host allows that.
+1. Create a managed Postgres database (Neon production runs Postgres 18; the Docker image ships pg_dump 17, so run backups from the GitHub workflow or upgrade the client). Keep it private to the host's network if the host allows that.
 2. Deploy this repo's Dockerfile. The container runs `alembic upgrade head` on start.
 3. Set environment variables in the host dashboard, never in the repo:
    - `DATABASE_URL`: the host's Postgres URL (`postgres://` URLs are accepted)
