@@ -13,8 +13,12 @@ from app.security import NotAuthenticated, csrf_protect, current_user
 from app.services import NotFound
 from app.web import is_htmx, redirect, render
 
+from app import sso
+
+# Sign-out redirects to the portfolio, and browsers apply form-action to a form's redirects.
+_FORM_ACTION = f"'self' {sso.PORTFOLIO}" if sso.enabled() else "'self'"
 CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
-       "form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+       f"form-action {_FORM_ACTION}; frame-ancestors 'none'; base-uri 'none'")
 
 
 def create_app() -> FastAPI:
