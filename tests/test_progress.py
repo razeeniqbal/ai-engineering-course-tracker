@@ -150,3 +150,18 @@ def test_parse_length_rejects(text):
 
 def test_format_length():
     assert format_length(125) == "2:05" and format_length(3725) == "1:02:05" and format_length(None) == ""
+
+
+def test_digest_for_the_portfolio_admin(authed, course, db):
+    ep = _episode(db, "E005")
+    authed.post(f"/episodes/{ep.episode_key}/status", data={"status": "edited"}, htmx=True)
+    d = authed.get("/api/digest").json()
+    assert d["total"] == 87 and d["published"] == 0
+    assert {s["status"]: s["count"] for s in d["byStatus"]}["edited"] == 1
+    assert [r["key"] for r in d["rings"]] == ["learn", "produce", "publish"]
+    assert d["upNext"][0]["code"] == "E005" and d["upNext"][0]["statusLabel"] == "Edited"
+    assert {"thisWeek", "target", "perWeek", "remaining", "finishAtPace"} <= d["pace"].keys()
+
+
+def test_digest_needs_sign_in(client, course):
+    assert client.get("/api/digest", follow_redirects=False).headers["location"] == "/login"
