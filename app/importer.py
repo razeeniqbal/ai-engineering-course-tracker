@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import CourseVersion, Episode, EpisodeProgress, Module, ModuleProgress
+from app.models import CourseVersion, Episode, EpisodeKeyMap, EpisodeProgress, Module, ModuleProgress
 
 SPEC_FIELDS = ("hook", "claim", "show", "gotcha", "takeaway")
 MODULE_FIELDS = ("depth", "learn", "build", "checkpoint")
@@ -206,9 +206,9 @@ def active_version(db: Session) -> CourseVersion | None:
 
 
 def import_course(db: Session, markdown: str, label: str | None = None) -> CourseVersion:
-    """First import only. Importing a new version over existing progress is a v1 feature."""
+    """First import only. Later versions go through plan_upgrade / apply_upgrade."""
     if active_version(db) is not None:
-        raise CourseImportError(["A course version is already loaded. Version upgrades arrive in v1."])
+        raise CourseImportError(["A course version is already loaded. Upload a new version to upgrade."])
     parsed = parse_course(markdown)
     version = CourseVersion(label=(label or parsed.label or "v?").strip(), source_markdown=markdown,
                             is_active=True)
@@ -227,6 +227,154 @@ def import_course(db: Session, markdown: str, label: str | None = None) -> Cours
                          position=position, type=pe.type, title=pe.title, is_pilot=pe.is_pilot, **pe.spec)
             db.add(ep)
             db.add(EpisodeProgress(episode_key=ep.episode_key))
+    db.commit()
+    db.info["active_version"] = version
+    return version
+
+
+# --- upgrading to a new course version ------------------------------------------
+# Progress lives on episode_key / module_key, so an upgrade only has to decide which old
+# episode each new one continues; the new rows reuse that key and every status, script,
+# time and history entry carries over untouched.
+
+NEW = "new"
+
+
+@dataclass
+class EpisodeMatch:
+    new: ParsedEpisode
+    module_number: int
+    old: Episode | None
+    how: str  # "code", "title", "manual" or "new"
+
+    @property
+    def title_changed(self) -> bool:
+        return self.old is not None and self.old.title != self.new.title
+
+
+@dataclass
+class UpgradePlan:
+    label: str
+    current: CourseVersion
+    matches: list[EpisodeMatch]
+    removed: list[Episode]
+    new_modules: list[int]
+    removed_modules: list[int]
+
+    @property
+    def unmatched(self) -> list[EpisodeMatch]:
+        return [m for m in self.matches if m.old is None]
+
+    @property
+    def renamed(self) -> list[EpisodeMatch]:
+        return [m for m in self.matches if m.title_changed]
+
+    def count(self, how: str) -> int:
+        return sum(m.how == how for m in self.matches)
+
+
+def _norm(title: str) -> str:
+    return re.sub(r"\s+", " ", title).strip().lower()
+
+
+def plan_upgrade(db: Session, markdown: str, label: str | None = None,
+                 overrides: dict[str, str] | None = None) -> UpgradePlan:
+    """Match each new episode to an old one: hand-picked first, then same code, then same title.
+
+    `overrides` maps a new episode code to an old code, or to NEW to start it fresh.
+    """
+    current = active_version(db)
+    if current is None:
+        raise CourseImportError(["No course is loaded yet; import it first."])
+    parsed = parse_course(markdown)
+    new_label = (label or parsed.label or "").strip()
+    if not new_label:
+        raise CourseImportError(["Give the new version a label, e.g. v8."])
+    if new_label == current.label:
+        raise CourseImportError([f"{new_label} is already loaded. Use a different label for the new version."])
+
+    old_eps = list(db.scalars(select(Episode).where(Episode.version_id == current.id).order_by(Episode.position)))
+    by_code = {e.code: e for e in old_eps}
+    overrides = {k: v for k, v in (overrides or {}).items() if v}
+    errors = [f"{new} → {old}: there is no {old} in {current.label}"
+              for new, old in overrides.items() if old != NEW and old not in by_code]
+    if errors:
+        raise CourseImportError(errors)
+
+    pairs = [(pm.number, pe) for pm in parsed.modules for pe in pm.episodes]
+    claimed: set[str] = set()
+    chosen: dict[str, tuple[Episode | None, str]] = {}
+    for _, pe in pairs:  # 1. choices made by hand
+        old_code = overrides.get(pe.code)
+        if old_code == NEW:
+            chosen[pe.code] = (None, "new")
+        elif old_code:
+            if old_code in claimed:
+                raise CourseImportError([f"{old_code} is picked for more than one new episode."])
+            claimed.add(old_code)
+            chosen[pe.code] = (by_code[old_code], "manual")
+    for _, pe in pairs:  # 2. same code
+        if pe.code not in chosen and pe.code in by_code and pe.code not in claimed:
+            claimed.add(pe.code)
+            chosen[pe.code] = (by_code[pe.code], "code")
+    by_title = {}
+    for e in old_eps:
+        if e.code not in claimed:
+            by_title.setdefault(_norm(e.title), e)
+    for _, pe in pairs:  # 3. same title among the old episodes nobody has claimed
+        if pe.code not in chosen:
+            old = by_title.pop(_norm(pe.title), None)
+            if old is not None and old.code not in claimed:
+                claimed.add(old.code)
+                chosen[pe.code] = (old, "title")
+            else:
+                chosen[pe.code] = (None, "new")
+
+    old_module_numbers = set(db.scalars(select(Module.number).where(Module.version_id == current.id)))
+    new_module_numbers = {pm.number for pm in parsed.modules}
+    return UpgradePlan(
+        label=new_label,
+        current=current,
+        matches=[EpisodeMatch(pe, number, *chosen[pe.code]) for number, pe in pairs],
+        removed=[e for e in old_eps if e.code not in claimed],
+        new_modules=sorted(new_module_numbers - old_module_numbers),
+        removed_modules=sorted(old_module_numbers - new_module_numbers),
+    )
+
+
+def apply_upgrade(db: Session, markdown: str, label: str | None = None,
+                  overrides: dict[str, str] | None = None) -> CourseVersion:
+    """Load the new version as the active one; the old version stays in the database, read-only."""
+    plan = plan_upgrade(db, markdown, label, overrides)
+    parsed = parse_course(markdown)
+    old_modules = {m.number: m for m in db.scalars(select(Module).where(Module.version_id == plan.current.id))}
+    match_for = {m.new.code: m for m in plan.matches}
+
+    plan.current.is_active = False
+    version = CourseVersion(label=plan.label, source_markdown=markdown, is_active=True)
+    db.add(version)
+    db.flush()
+    position = 0
+    for pm in parsed.modules:
+        old_module = old_modules.get(pm.number)
+        module_key = old_module.module_key if old_module else new_key("mod")
+        module = Module(version_id=version.id, module_key=module_key, number=pm.number, title=pm.title,
+                        lab_steps=pm.lab_steps, lab_note=pm.lab_note, **pm.fields)
+        db.add(module)
+        db.flush()
+        if old_module is None:
+            db.add(ModuleProgress(module_key=module_key))
+        for pe in pm.episodes:
+            position += 1
+            match = match_for[pe.code]
+            key = match.old.episode_key if match.old else new_key("ep")
+            db.add(Episode(version_id=version.id, module_id=module.id, episode_key=key, code=pe.code,
+                           position=position, type=pe.type, title=pe.title, is_pilot=pe.is_pilot, **pe.spec))
+            if match.old is None:
+                db.add(EpisodeProgress(episode_key=key))
+            else:
+                db.add(EpisodeKeyMap(old_version_id=plan.current.id, old_code=match.old.code,
+                                     new_version_id=version.id, new_code=pe.code, episode_key=key))
     db.commit()
     db.info["active_version"] = version
     return version

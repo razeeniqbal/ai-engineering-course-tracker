@@ -15,7 +15,21 @@
       <div class="row-sub">Imported {{ version.imported_at | local }} (Malaysia time)</div>
     </div>
   </div>
-  <p class="caption mt">Importing a new course version (with title matching and approval) arrives in v1.</p>
+  <details class="mt" {% if upgrade_errors %}open{% endif %}>
+    <summary>Load a new course version</summary>
+    <p class="caption">Upload the updated course markdown. You'll see how every episode matches up before anything changes, and your progress stays with each episode. {{ version.label }} is kept read-only.</p>
+    {% if upgrade_errors %}
+    <div class="errors" role="alert"><p>Couldn't prepare the upgrade:</p><ul>{% for e in upgrade_errors %}<li>{{ e }}</li>{% endfor %}</ul></div>
+    {% endif %}
+    <form method="post" action="/settings/upgrade/preview" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label for="upgrade_file">New course markdown (.md)</label>
+      <input id="upgrade_file" name="course_file" type="file" accept=".md,text/markdown,text/plain" required>
+      <label for="upgrade_label">Version label (optional)</label>
+      <input id="upgrade_label" name="label" type="text" placeholder="Read from the file, e.g. v8" maxlength="32">
+      <div class="actions"><button type="submit">Review changes</button></div>
+    </form>
+  </details>
   {% else %}
   <p class="muted">Upload the course markdown to load its modules and episodes.</p>
   {% endif %}

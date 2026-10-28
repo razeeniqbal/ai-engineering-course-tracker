@@ -167,8 +167,23 @@ course/           the v7 course markdown
 tests/
 ```
 
+## Loading a new course version
+
+Settings → *Load a new course version* → upload the new markdown → review → approve.
+
+- Each new episode is matched to an old one: by your choice on the review page, then by the same
+  code (E012), then by the same title. Unmatched episodes start fresh; old ones that nothing
+  matches are hidden but their data stays.
+- Matched episodes reuse the old `episode_key`, so status, history, script, production times and
+  publish details carry over untouched. Module checklists, notes and study time follow the module
+  number.
+- The previous version stays in the database, read-only, and each match is written to
+  `episode_key_map`.
+
+`course/AI_Engineering_Course_Razeen_v8.md` (the "Day 1 → hired by Mercedes" journey, automotive
+project) keeps every v7 code, module and type, so all 87 episodes match by code.
+
 ## Not in the MVP (per the PRD)
 
-Two-factor sign-in, version upgrades with title matching, script drafts, per-platform links, view
-counts, the failure log, the pace chart and the weekly review are v1. The `script_markdown` and
-`totp_secret` columns already exist so v1 doesn't need to change those tables.
+Two-factor sign-in, per-platform links, view counts, the failure log, the pace chart and the weekly
+review are v1. The `totp_secret` column already exists so v1 doesn't need to change that table.

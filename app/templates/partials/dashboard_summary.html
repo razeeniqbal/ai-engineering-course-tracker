@@ -38,7 +38,7 @@
   <div class="section-label">This week</div>
   <div class="tiles">
     <div class="tile">
-      <div class="k"><span class="ic-pace">{{ ui.icon("published") }}</span>Published</div>
+      <div class="k"><span class="ic-pace">{{ ui.icon("published") }}</span>Lessons published</div>
       <div class="v">{{ p.this_week }}<small> / {{ p.target }}</small></div>
       <div class="s">{% if p.this_week >= p.target %}Target hit 🎯{% else %}{{ p.target - p.this_week }} to go this week{% endif %}</div>
     </div>
@@ -56,10 +56,10 @@
       <div class="k"><span class="ic-finish">{{ ui.icon("flag") }}</span>Finish</div>
       {% if p.finish_at_pace %}
       <div class="v">{{ p.finish_at_pace.strftime("%b %Y") }}</div>
-      <div class="s">at {{ p.per_week }}/week · at 3/week: {{ p.finish_at_target.strftime("%b %Y") }}</div>
+      <div class="s">at {{ p.per_week }}/week · at {{ p.target }}/week: {{ p.finish_at_target.strftime("%b %Y") }}</div>
       {% else %}
       <div class="v">{{ p.finish_at_target.strftime("%b %Y") if p.finish_at_target else "—" }}</div>
-      <div class="s">if you publish 3/week from now</div>
+      <div class="s">if you publish {{ p.target }}/week from now</div>
       {% endif %}
     </div>
   </div>

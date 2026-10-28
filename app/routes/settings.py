@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.export import TABLE_NAMES, export_csv_zip, export_json, table_csv
-from app.importer import CourseImportError, active_version, import_course
-from app.models import User
+from app.importer import NEW, CourseImportError, active_version, apply_upgrade, import_course, plan_upgrade
+from app.models import EpisodeProgress, User
 from app.security import check_new_password, current_user, hash_password, start_session, verify_password
 from app.timeutil import local_today
 from app.web import redirect, render
@@ -40,6 +41,59 @@ async def upload_course(request: Request, course_file: UploadFile = File(...), l
         db.rollback()
         return _settings_page(request, db, 422, import_errors=exc.errors)
     return redirect(f"/settings?notice=Imported+course+{version.label}")
+
+
+async def _upgrade_inputs(request: Request) -> tuple[str | None, str, dict[str, str]]:
+    """The new course markdown (an uploaded file, or carried in the review form), label and hand-picked matches."""
+    form = await request.form()
+    upload = form.get("course_file")
+    markdown = None
+    if upload is not None and hasattr(upload, "read") and upload.filename:
+        raw = await upload.read(MAX_UPLOAD_BYTES + 1)
+        if len(raw) > MAX_UPLOAD_BYTES:
+            raise CourseImportError(["File is larger than 2 MB."])
+        try:
+            markdown = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise CourseImportError(["File must be UTF-8 markdown."]) from None
+    elif form.get("markdown"):
+        markdown = str(form["markdown"])
+    overrides = {k.removeprefix("override_"): str(v) for k, v in form.items()
+                 if k.startswith("override_") and str(v)}
+    return markdown, str(form.get("label") or "").strip(), overrides
+
+
+def _carried_progress(db: Session, plan) -> int:
+    keys = [m.old.episode_key for m in plan.matches if m.old is not None]
+    rows = db.scalars(select(EpisodeProgress).where(EpisodeProgress.episode_key.in_(keys)))
+    return sum(1 for p in rows if p.status != "not_started" or p.script_markdown or p.video_url)
+
+
+@router.post("/settings/upgrade/preview")
+async def upgrade_preview(request: Request, db: Session = Depends(get_db)):
+    try:
+        markdown, label, overrides = await _upgrade_inputs(request)
+        if not markdown:
+            raise CourseImportError(["Choose the new course markdown file."])
+        plan = plan_upgrade(db, markdown, label or None, overrides)
+    except CourseImportError as exc:
+        return _settings_page(request, db, 422, upgrade_errors=exc.errors)
+    return render(request, "course_upgrade.html", plan=plan, markdown=markdown, overrides=overrides,
+                  carried=_carried_progress(db, plan), NEW=NEW, page="settings")
+
+
+@router.post("/settings/upgrade/apply")
+async def upgrade_apply(request: Request, db: Session = Depends(get_db)):
+    try:
+        markdown, label, overrides = await _upgrade_inputs(request)
+        if not markdown:
+            raise CourseImportError(["The review form lost the course file; upload it again."])
+        previous = active_version(db).label
+        version = apply_upgrade(db, markdown, label or None, overrides)
+    except CourseImportError as exc:
+        db.rollback()
+        return _settings_page(request, db, 422, upgrade_errors=exc.errors)
+    return redirect(f"/settings?notice=Now+on+course+{version.label}.+{previous}+is+kept+read-only.")
 
 
 @router.post("/settings/password")
