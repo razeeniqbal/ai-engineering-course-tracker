@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Review {{ plan.label }} · Course Tracker{% endblock %}
+{% block content %}
+<a class="back" href="/settings">{{ ui.icon("chev-left") }}Settings</a>
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Load a new course version</div>
+    <h1>{{ plan.current.label }} → {{ plan.label }}</h1>
+  </div>
+</div>
+
+<form method="post" action="/settings/upgrade/apply">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="label" value="{{ plan.label }}">
+  <textarea name="markdown" hidden aria-hidden="true">{{ markdown }}</textarea>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">Same episode code</div><div class="v">{{ plan.count("code") }}</div><div class="s">progress carries over</div></div>
+    <div class="tile"><div class="k">Matched by title or by you</div><div class="v">{{ plan.count("title") + plan.count("manual") }}</div><div class="s">progress carries over</div></div>
+    <div class="tile"><div class="k">New episodes</div><div class="v">{{ plan.unmatched | length }}</div><div class="s">start as Not started</div></div>
+    <div class="tile"><div class="k">No longer in the course</div><div class="v">{{ plan.removed | length }}</div><div class="s">hidden, data kept</div></div>
+  </div>
+
+  <section class="card mt" aria-labelledby="sum-h">
+    <h2 id="sum-h">What happens when you approve</h2>
+    <ul>
+      <li><b>{{ carried }}</b> episode{{ "" if carried == 1 else "s" }} with progress (status, script or publish details) keep all of it, including history and production times.</li>
+      <li>Module checklists, notes and study time stay with their module number.{% if plan.new_modules %} New modules: {{ plan.new_modules | join(", ") }}.{% endif %}{% if plan.removed_modules %} Modules no longer in the course: {{ plan.removed_modules | join(", ") }}.{% endif %}</li>
+      <li>{{ plan.current.label }} stays in the database, read-only; exports include both versions.</li>
+    </ul>
+  </section>
+
+  {% if plan.unmatched %}
+  <div class="section-label">New episodes: continue an old one?</div>
+  <div class="group">
+    {% for m in plan.unmatched %}
+    <div class="row-item">
+      <div class="row-main">
+        <div class="row-title">{{ m.new.code }} · {{ m.new.title }}</div>
+        <div class="row-sub">Module {{ m.module_number }}</div>
+      </div>
+      <label class="visually-hidden" for="ov-{{ m.new.code }}">Match for {{ m.new.code }}</label>
+      <select id="ov-{{ m.new.code }}" name="override_{{ m.new.code }}">
+        <option value="{{ NEW }}">New episode</option>
+        {% for old in plan.removed %}
+        <option value="{{ old.code }}" {% if overrides.get(m.new.code) == old.code %}selected{% endif %}>Continues {{ old.code }} · {{ old.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if plan.removed %}
+  <div class="section-label">No longer in {{ plan.label }}</div>
+  <div class="group">
+    {% for old in plan.removed %}
+    <div class="row-item"><div class="row-main"><div class="row-title">{{ old.code }} · {{ old.title }}</div></div></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="section-label">Every episode ({{ plan.renamed | length }} renamed)</div>
+  <div class="group">
+    {% for m in plan.matches %}
+    <div class="row-item">
+      <div class="row-main">
+        <div class="row-title">{{ m.new.code }} · {{ m.new.title }}</div>
+        <div class="row-sub">
+          {% if m.old is none %}New episode
+          {% else %}
+            {% if m.how == "code" %}Same code{% elif m.how == "title" %}Same title as {{ m.old.code }}{% else %}You matched it to {{ m.old.code }}{% endif %}
+            {% if m.title_changed %} · was “{{ m.old.title }}”{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% if m.old and m.how != "code" %}
+      <input type="hidden" name="override_{{ m.new.code }}" value="{{ m.old.code }}">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="actions">
+    <button type="submit">Approve and switch to {{ plan.label }}</button>
+    {% if plan.unmatched %}<button type="submit" class="secondary" formaction="/settings/upgrade/preview">Update preview</button>{% endif %}
+    <a class="button secondary" href="/settings">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -16,7 +16,7 @@ from app.models import (
 )
 from app.timeutil import as_utc, local_today, to_local, week_start
 
-WEEKLY_TARGET = 3
+WEEKLY_TARGET = 2  # lessons per week (v8: plus one AI explained or check-in video)
 STAGE = {slug: i for i, (slug, _) in enumerate(STATUSES)}  # not_started=0 … published=4
 LAST_STAGE = len(STATUSES) - 1
 

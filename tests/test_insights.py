@@ -12,7 +12,7 @@ MON = date(2026, 10, 19)  # a Monday
 def test_pace_with_no_publishing_uses_target_only():
     p = insights.pace([], remaining=87, today=MON)
     assert (p.this_week, p.per_week, p.finish_at_pace) == (0, 0.0, None)
-    assert p.finish_at_target == MON + timedelta(weeks=29)  # ceil(87 / 3)
+    assert p.finish_at_target == MON + timedelta(weeks=44)  # ceil(87 / 2 lessons a week)
 
 
 def test_pace_counts_this_week_and_projects_finish():

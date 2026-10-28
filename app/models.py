@@ -135,8 +135,20 @@ class StudySession(Timestamped, Base):
     note: Mapped[str | None] = mapped_column(String(500))
 
 
+class EpisodeKeyMap(Timestamped, Base):
+    """Written when a new course version is approved: which old episode each new one continues."""
+    __tablename__ = "episode_key_map"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    old_version_id: Mapped[int] = mapped_column(ForeignKey("course_versions.id"))
+    old_code: Mapped[str] = mapped_column(String(8))
+    new_version_id: Mapped[int] = mapped_column(ForeignKey("course_versions.id"))
+    new_code: Mapped[str] = mapped_column(String(8))
+    episode_key: Mapped[str] = mapped_column(String(32))
+    approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 # Order matters for export and for restoring from an export.
 EXPORT_TABLES = [
     User, CourseVersion, Module, Episode, EpisodeProgress,
-    StatusEvent, ProductionTime, ModuleProgress, StudySession,
+    StatusEvent, ProductionTime, ModuleProgress, StudySession, EpisodeKeyMap,
 ]
