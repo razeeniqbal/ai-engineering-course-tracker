@@ -4,6 +4,7 @@
     python -m app.cli reset-password --email you@example.com
     python -m app.cli unlock --email you@example.com
     python -m app.cli import-course course/AI_Engineering_Course_Razeen_v7.md --label v7
+    python -m app.cli load-scripts course/scripts [--overwrite]
 """
 
 import argparse
@@ -73,6 +74,19 @@ def import_course_file(path: str, label: str | None) -> None:
         print(f"Imported course {version.label}")
 
 
+def load_scripts_dir(directory: str, overwrite: bool) -> None:
+    from app.scripts import load_scripts, read_script_files
+
+    with SessionLocal() as db:
+        result = load_scripts(db, read_script_files(directory), overwrite)
+    print(f"Filled {len(result.filled)} scripts.")
+    if result.skipped:
+        print(f"Kept {len(result.skipped)} you'd already written (use --overwrite to replace): "
+              + ", ".join(result.skipped))
+    if result.unknown:
+        print("Not in the loaded course: " + ", ".join(result.unknown))
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -81,6 +95,9 @@ def main(argv: list[str] | None = None) -> None:
     imp = sub.add_parser("import-course")
     imp.add_argument("path")
     imp.add_argument("--label")
+    load = sub.add_parser("load-scripts")
+    load.add_argument("directory")
+    load.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.command == "create-owner":
@@ -89,6 +106,8 @@ def main(argv: list[str] | None = None) -> None:
             reset_password(args.email)
         elif args.command == "unlock":
             unlock(args.email)
+        elif args.command == "load-scripts":
+            load_scripts_dir(args.directory, args.overwrite)
         else:
             import_course_file(args.path, args.label)
     except ValueError as exc:

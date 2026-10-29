@@ -70,3 +70,56 @@ def outline(episode: Episode, next_episode: Episode | None) -> str:
         f"*Screen: \"{episode.takeaway}\"*\n"
         f"> {episode.takeaway}{next_line}\n"
     )
+
+
+# --- loading prepared scripts from course/scripts/*.md ----------------------------
+
+_SECTION_RE = re.compile(r"^## (E\d{3}) · [CB] · .*$", re.MULTILINE)
+
+
+def read_script_files(directory) -> dict[str, str]:
+    """{episode code: script markdown} from files whose episodes are headed '## E012 · B · Title'."""
+    from pathlib import Path
+
+    found: dict[str, str] = {}
+    for path in sorted(Path(directory).glob("*.md")):
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        parts = _SECTION_RE.split(text)
+        for i in range(1, len(parts), 2):
+            code, body = parts[i], parts[i + 1].strip()
+            if code in found:
+                raise ValueError(f"{code} appears twice in {directory}")
+            found[code] = body
+    return found
+
+
+@dataclass
+class LoadResult:
+    filled: list[str]
+    skipped: list[str]  # already had a script and overwrite was off
+    unknown: list[str]  # codes not in the active course version
+
+
+def load_scripts(db, scripts: dict[str, str], overwrite: bool = False) -> LoadResult:
+    from sqlalchemy import select
+
+    from app.importer import active_version
+    from app.models import EpisodeProgress
+
+    version = active_version(db)
+    if version is None:
+        raise ValueError("No course is loaded yet.")
+    keys = dict(db.execute(select(Episode.code, Episode.episode_key).where(Episode.version_id == version.id)).all())
+    result = LoadResult([], [], [])
+    for code, markdown in sorted(scripts.items()):
+        if code not in keys:
+            result.unknown.append(code)
+            continue
+        progress = db.get(EpisodeProgress, keys[code])
+        if progress.script_markdown and not overwrite:
+            result.skipped.append(code)
+            continue
+        progress.script_markdown = markdown[:MAX_SCRIPT_CHARS]
+        result.filled.append(code)
+    db.commit()
+    return result
